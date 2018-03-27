@@ -53,11 +53,13 @@ cdnet_intf_t n_intf = {0};   // CDNET
 // 200 step per 360 'C
 #define INIT_PERIOD 1000
 
+static int min_accel = 1;
 static int max_accel = 1000;
-static int min_period = 100;
+static int min_period = 50;
 static int max_period = INIT_PERIOD;
+static int max_pos = 130000UL;
 
-static int cur_accel = 3;
+static int cur_accel = 1;
 
 static int tgt_pos = 0;
 static int tgt_period = INIT_PERIOD;
@@ -69,6 +71,16 @@ static int cur_period = INIT_PERIOD;
 static list_head_t cmd = {0};
 static int state;
 
+static void goto_pos(int pos, int period, int accel)
+{
+    tgt_pos = min(pos, max_pos);
+    gpio_set_value(&drv_dir, tgt_pos >= cur_pos); // 0: -, 1: +
+    cur_period = max_period;
+    tgt_period = clip(period, min_period, max_period);
+    cur_accel = clip(accel, min_accel, max_accel);
+    __HAL_TIM_SET_AUTORELOAD(&htim1, cur_period);
+    __HAL_TIM_ENABLE(&htim1);
+}
 
 static void device_init(void)
 {
@@ -113,7 +125,6 @@ void set_led_state(led_state_t state)
 
 extern uint32_t end; // end of bss
 
-
 void app_main(void)
 {
     debug_init();
@@ -135,12 +146,7 @@ void app_main(void)
     gpio_set_value(&drv_md3, 1);
     gpio_set_value(&drv_en, 1);
 
-    tgt_pos = 20000LL;
-    gpio_set_value(&drv_dir, tgt_pos >= cur_pos); // 0: -, 1: +
-    cur_period = max_period;
-    tgt_period = 50;
-    __HAL_TIM_SET_AUTORELOAD(&htim1, cur_period);
-    __HAL_TIM_ENABLE(&htim1);
+    goto_pos(max_pos * -2, 200, 3); // go home
 
     while (true) {
 
@@ -247,6 +253,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         cdctl_int_isr(&r_intf);
     } else if (GPIO_Pin == limit_det.num) {
         d_debug("lim: detected\n");
+        __HAL_TIM_DISABLE(&htim1);
+        __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
+        tgt_pos = cur_pos = -1000;
+        goto_pos(0, 50, 3);
     }
 }
 
