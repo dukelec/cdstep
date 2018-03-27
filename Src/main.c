@@ -363,15 +363,21 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PWR_DET_Pin LIMIT_DET_Pin */
-  GPIO_InitStruct.Pin = PWR_DET_Pin|LIMIT_DET_Pin;
+  /*Configure GPIO pin : PWR_DET_Pin */
+  GPIO_InitStruct.Pin = PWR_DET_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  HAL_GPIO_Init(PWR_DET_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LIMIT_DET_Pin */
+  GPIO_InitStruct.Pin = LIMIT_DET_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(LIMIT_DET_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pin : CDCTL_INT_N_Pin */
   GPIO_InitStruct.Pin = CDCTL_INT_N_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(CDCTL_INT_N_GPIO_Port, &GPIO_InitStruct);
 
@@ -402,6 +408,9 @@ static void MX_GPIO_Init(void)
   /* EXTI interrupt init*/
   HAL_NVIC_SetPriority(EXTI0_IRQn, 1, 0);
   //HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 1, 0);
+  //HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
 }
 

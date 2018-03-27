@@ -119,6 +119,7 @@ void app_main(void)
     debug_init();
     device_init();
     HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
     d_debug("start app_main...\n");
     *(uint32_t *)(&end) = 0xababcdcd;
     set_led_state(LED_POWERON);
