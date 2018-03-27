@@ -35,10 +35,6 @@ typedef struct {
 extern app_conf_t app_conf;
 extern cdnet_intf_t n_intf;
 
-extern list_head_t cdc_rx_free_head;
-extern list_head_t cdc_rx_head;
-extern cdc_buf_t *cdc_rx_buf;
-
 void p1_service(cdnet_packet_t *pkt);
 void p2_service(cdnet_packet_t *pkt);
 void p3_service(cdnet_packet_t *pkt);

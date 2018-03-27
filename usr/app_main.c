@@ -50,6 +50,26 @@ cdctl_intf_t r_intf = {0};   // RS485
 cdnet_intf_t n_intf = {0};   // CDNET
 
 
+// 200 step per 360 'C
+#define INIT_PERIOD 1000
+
+static int max_accel = 1000;
+static int min_period = 100;
+static int max_period = INIT_PERIOD;
+
+static int cur_accel = 3;
+
+static int tgt_pos = 0;
+static int tgt_period = INIT_PERIOD;
+static int end_period = INIT_PERIOD;
+
+static int cur_pos = 0;
+static int cur_period = INIT_PERIOD;
+
+static list_head_t cmd = {0};
+static int state;
+
+
 static void device_init(void)
 {
     int i;
@@ -108,14 +128,18 @@ void app_main(void)
 
     __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
     __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);
-    __HAL_TIM_SET_AUTORELOAD(&htim1, 65530);
-    __HAL_TIM_ENABLE(&htim1);
 
     gpio_set_value(&drv_md1, 0);
-    gpio_set_value(&drv_md2, 1);
-    gpio_set_value(&drv_md3, 0);
+    gpio_set_value(&drv_md2, 0);
+    gpio_set_value(&drv_md3, 1);
     gpio_set_value(&drv_en, 1);
-    gpio_set_value(&drv_dir, 1);
+
+    tgt_pos = 20000LL;
+    gpio_set_value(&drv_dir, tgt_pos >= cur_pos); // 0: -, 1: +
+    cur_period = max_period;
+    tgt_period = 50;
+    __HAL_TIM_SET_AUTORELOAD(&htim1, cur_period);
+    __HAL_TIM_ENABLE(&htim1);
 
     while (true) {
 
@@ -126,13 +150,9 @@ void app_main(void)
 
         {
             static int t_l = 0;
-            if (get_systick() - t_l > 200) {
+            if (get_systick() - t_l > 5000) {
                 t_l = get_systick();
                 d_debug("... %ld\n", t_l);
-                __HAL_TIM_ENABLE(&htim1);
-
-                gpio_set_value(&drv_step, 1);
-                gpio_set_value(&drv_step, 0);
             }
         }
 
@@ -195,13 +215,37 @@ void app_main(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    d_debug("timer call back %ld\n", get_systick());
+    //d_debug("tim: t: %ld, cur_pos: %d, cur_period: %d\n",
+    //        get_systick(), cur_pos, cur_period);
+    gpio_get_value(&drv_dir) ? cur_pos++ : cur_pos--;
+
+    if (tgt_pos == cur_pos) {
+        d_debug("tim: tgt_pos == cur_pos, cur_period: %d\n", cur_period);
+        return;
+    }
+
+    if (abs(end_period - cur_period) / cur_accel >= abs(tgt_pos - cur_pos)) {
+        if (cur_period <= end_period)
+            cur_period += min(end_period - cur_period, cur_accel);
+        else
+            cur_period -= min(cur_period - end_period, cur_accel);
+    } else if (cur_period >= tgt_period) {
+        cur_period -= min(cur_period - tgt_period, cur_accel);
+    }
+
+    __HAL_TIM_SET_AUTORELOAD(&htim1, cur_period);
+    __HAL_TIM_ENABLE(&htim1);
+
+    gpio_set_value(&drv_step, 1);
+    gpio_set_value(&drv_step, 0);
 }
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == r_int_n.num) {
         cdctl_int_isr(&r_intf);
+    } else if (GPIO_Pin == limit_det.num) {
+        d_debug("lim: detected\n");
     }
 }
 
