@@ -160,6 +160,8 @@ void app_main(void)
             if (get_systick() - t_l > 5000) {
                 t_l = get_systick();
                 d_debug("... %ld\n", t_l);
+                //tgt_period = -1; // stop now
+                //tgt_period = 500; // slow down
             }
         }
 
@@ -226,18 +228,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     //        get_systick(), cur_pos, cur_period);
     gpio_get_value(&drv_dir) ? cur_pos++ : cur_pos--;
 
-    if (tgt_pos == cur_pos) {
-        d_debug("tim: tgt_pos == cur_pos, cur_period: %d\n", cur_period);
+    if (cur_pos == tgt_pos) {
+        d_debug("tim: arrive pos %d, period: %d\n", tgt_pos, cur_period);
         return;
     }
 
-    if (abs(end_period - cur_period) / cur_accel >= abs(tgt_pos - cur_pos)) {
-        if (cur_period <= end_period)
-            cur_period += min(end_period - cur_period, cur_accel);
-        else
-            cur_period -= min(cur_period - end_period, cur_accel);
-    } else if (cur_period >= tgt_period) {
-        cur_period -= min(cur_period - tgt_period, cur_accel);
+    if (tgt_period == -1) {
+        cur_period += min(abs(max_period - cur_period), cur_accel);
+        if (cur_period >= max_period) {
+            d_debug("tim: early stop at %d, target: %d\n", cur_pos, tgt_pos);
+            return;
+        }
+    } else if (abs(end_period - cur_period) / cur_accel + 1 >= abs(tgt_pos - cur_pos)) {
+        cur_period += sign(end_period - cur_period) *
+                min(abs(end_period - cur_period), cur_accel);
+    } else {
+        cur_period -= sign(cur_period - tgt_period) *
+                min(abs(cur_period - tgt_period), cur_accel);
     }
 
     __HAL_TIM_SET_AUTORELOAD(&htim1, cur_period);
@@ -255,7 +262,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         d_debug("lim: detected\n");
         __HAL_TIM_DISABLE(&htim1);
         __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
-        tgt_pos = cur_pos = -1000;
+        cur_pos = -1000;
         goto_pos(0, 50, 3);
     }
 }
