@@ -22,11 +22,37 @@ typedef struct {
     uint32_t        rs485_baudrate_high;
 } app_conf_t;
 
+typedef enum {
+    ST_OFF = 0,
+    ST_STOP,
+    ST_WAIT,
+    ST_RUN
+} state_t;
+
+typedef enum {
+    CMD_POS = 0,
+    CMD_WAIT
+} cmd_type_t;
+
 typedef struct {
-    list_node_t node;
-    uint16_t    len;
-    uint8_t     dat[512]; // CDC_DATA_HS_MAX_PACKET_SIZE
-} cdc_buf_t;
+    list_node_t     node;
+
+    cmd_type_t      type;
+    union {
+        struct {
+            int pos;
+            int speed;
+            int accel;
+        } __pos;
+
+        struct {
+            int time;
+        } __wait;
+    } __cmd_u;
+
+#define cmd_pos     __cmd_u.__pos
+#define cmd_wait    __cmd_u.__wait
+} cmd_t;
 
 #define FLASH_PORT          10 // save to flash
 #define RAW_SER_PORT        20

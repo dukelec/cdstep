@@ -68,8 +68,11 @@ static int end_period = INIT_PERIOD;
 static int cur_pos = 0;
 static int cur_period = INIT_PERIOD;
 
-static list_head_t cmd = {0};
-static int state;
+#define CMD_MAX 10
+static cmd_t cmd_alloc[CMD_MAX];
+static list_head_t cmd_free_head = {0};
+static list_head_t cmd_pend_head = {0};
+static state_t state = ST_OFF;
 
 static void goto_pos(int pos, int period, int accel)
 {
@@ -78,6 +81,9 @@ static void goto_pos(int pos, int period, int accel)
     cur_period = max_period;
     tgt_period = clip(period, min_period, max_period);
     cur_accel = clip(accel, min_accel, max_accel);
+    if (tgt_pos == cur_pos)
+        return;
+    state = ST_RUN;
     __HAL_TIM_SET_AUTORELOAD(&htim1, cur_period);
     __HAL_TIM_ENABLE(&htim1);
 }
@@ -89,6 +95,8 @@ static void device_init(void)
         list_put(&frame_free_head, &frame_alloc[i].node);
     for (i = 0; i < PACKET_MAX; i++)
         list_put(&packet_free_head, &packet_alloc[i].node);
+    for (i = 0; i < CMD_MAX; i++)
+        list_put(&cmd_free_head, &cmd_alloc[i].node);
 
     cdctl_intf_init(&r_intf, &frame_free_head, app_conf.rs485_addr.mac,
             app_conf.rs485_baudrate_low, app_conf.rs485_baudrate_high,
@@ -145,6 +153,7 @@ void app_main(void)
     gpio_set_value(&drv_md2, 0);
     gpio_set_value(&drv_md3, 1);
     gpio_set_value(&drv_en, 1);
+    state = ST_STOP;
 
     goto_pos(max_pos * -2, 200, 3); // go home
 
@@ -209,6 +218,43 @@ void app_main(void)
                     }
                     break;
 
+                case 21: // speed mode, 0x15
+                    if (pkt->len == 4 || pkt->len == 8) {
+                        int speed = *(int *)pkt->dat;
+                        if (pkt->len == 8)
+                            cur_accel = clip(*(int *)(pkt->dat + 4), min_accel, max_accel);
+                        if (pkt->len == 8)
+                            d_debug("speed mode: %d %d\n", speed, cur_accel);
+                        else
+                            d_debug("speed mode: %d\n", speed);
+
+                        if (speed == 0 || gpio_get_value(&drv_dir) != (speed >= 0)) {
+                            if (state == ST_RUN) {
+                                tgt_period = -1; // stop now
+                                d_debug("speed mode: wait stop\n");
+                                while (state == ST_RUN);
+                            }
+                        }
+
+                        if (speed != 0) {
+                            int pos = speed > 0 ? max_pos : 0;
+                            int period = clip(1000000 / abs(speed), min_period, max_period);
+                            local_irq_disable();
+                            if (state == ST_RUN) {
+                                tgt_period = period;
+                                tgt_pos = pos;
+                            } else {
+                                goto_pos(pos, period, cur_accel);
+                            }
+                            local_irq_enable();
+                        }
+
+                        while (cmd_pend_head.len)
+                            list_put_begin(&cmd_free_head, list_get(&cmd_pend_head));
+                    }
+                    list_put(n_intf.free_head, &pkt->node);
+                    break;
+
                 default:
                     d_warn("unknown pkg\n");
                     list_put(n_intf.free_head, &pkt->node);
@@ -230,6 +276,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     if (cur_pos == tgt_pos) {
         d_debug("tim: arrive pos %d, period: %d\n", tgt_pos, cur_period);
+        state = ST_STOP;
         return;
     }
 
@@ -237,6 +284,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         cur_period += min(abs(max_period - cur_period), cur_accel);
         if (cur_period >= max_period) {
             d_debug("tim: early stop at %d, target: %d\n", cur_pos, tgt_pos);
+            state = ST_STOP;
             return;
         }
     } else if (abs(end_period - cur_period) / cur_accel + 1 >= abs(tgt_pos - cur_pos)) {
@@ -260,6 +308,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         cdctl_int_isr(&r_intf);
     } else if (GPIO_Pin == limit_det.num) {
         d_debug("lim: detected\n");
+        state = ST_STOP;
         __HAL_TIM_DISABLE(&htim1);
         __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
         cur_pos = -1000;
