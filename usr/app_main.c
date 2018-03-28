@@ -73,12 +73,13 @@ static cmd_t cmd_alloc[CMD_MAX];
 static list_head_t cmd_free_head = {0};
 static list_head_t cmd_pend_head = {0};
 static state_t state = ST_OFF;
+static uint32_t wait_until = 0;
 
 static void goto_pos(int pos, int period, int accel)
 {
     tgt_pos = min(pos, max_pos);
     gpio_set_value(&drv_dir, tgt_pos >= cur_pos); // 0: -, 1: +
-    cur_period = max_period;
+    //cur_period = max_period;
     tgt_period = clip(period, min_period, max_period);
     cur_accel = clip(accel, min_accel, max_accel);
     if (tgt_pos == cur_pos)
@@ -174,6 +175,29 @@ void app_main(void)
             }
         }
 
+        if (state == ST_WAIT) {
+            if (get_systick() - wait_until >= 0) {
+                state = ST_STOP;
+            }
+        } else if (state == ST_STOP && cmd_pend_head.len) {
+            cmd_t *cmd = list_get_entry(&cmd_pend_head, cmd_t);
+            if (cmd->time) {
+                state = ST_WAIT;
+                wait_until = get_systick() + cmd->time;
+            } else {
+                goto_pos(cmd->pos, cmd->period, cmd->accel);
+            }
+            list_put(&cmd_free_head, &cmd->node);
+
+        } else if (state == ST_RUN) {
+            cmd_t *cmd = list_entry_safe(cmd_pend_head.first, cmd_t);
+            if (cmd && !cmd->time &&
+                    (gpio_get_value(&drv_dir) == (cmd->pos >= tgt_pos)))
+                end_period = clip(cmd->period, min_period, max_period);
+            else
+                end_period = INIT_PERIOD;
+        }
+
         // handle cdnet
 
         cdnet_rx(&n_intf);
@@ -195,27 +219,27 @@ void app_main(void)
                     p3_service(pkt);
                     break;
 
-                case 15:
-                    if (pkt->len == 4) {
-                        /*
-                        app_conf.rpt_en = !!(pkt->dat[0] & 0x80);
-                        app_conf.rpt_multi = pkt->dat[0] & 0x30;
-                        app_conf.rpt_seq = pkt->dat[0] & 0x08;
-                        app_conf.rpt_pkt_level = pkt->dat[0] & 0x03;
-                        app_conf.rpt_mac = pkt->dat[1];
-                        app_conf.rpt_addr.net = pkt->dat[2];
-                        app_conf.rpt_addr.mac = pkt->dat[3];
-                        */
-
-                        pkt->len = 0;
-                        cdnet_exchg_src_dst(&n_intf, pkt);
-                        list_put(&n_intf.tx_head, &pkt->node);
-                        d_debug("raw_conf: ...\n");
-                    } else {
-                        // TODO: report setting
+                case 20: // pos mode, 0x14
+                    if (pkt->len != 16) {
                         list_put(n_intf.free_head, &pkt->node);
-                        d_warn("raw_conf: wrong len: %d\n", pkt->len);
+                        d_warn("pos mode: wrong len: %d\n", pkt->len);
+                        break;
                     }
+                    cmd_t *cmd = list_get_entry(&cmd_free_head, cmd_t);
+                    if (cmd) {
+                        cmd->pos = *(int *)pkt->dat;
+                        cmd->period = 1000000 / *(int *)(pkt->dat + 4);
+                        cmd->accel = *(int *)(pkt->dat + 8);
+                        cmd->time = *(int *)(pkt->dat + 12);
+                        list_put(&cmd_pend_head, &cmd->node);
+                        d_debug("pos mode: %d %d(%d) %d %d (len: %d)\n",
+                                cmd->pos, *(int *)(pkt->dat + 4), cmd->period,
+                                cmd->accel, cmd->time, cmd_pend_head.len);
+                    }
+                    pkt->len = 1;
+                    pkt->dat[0] = cmd_pend_head.len | (cmd ? 0 : 0x80);
+                    cdnet_exchg_src_dst(&n_intf, pkt);
+                    list_put(&n_intf.tx_head, &pkt->node);
                     break;
 
                 case 21: // speed mode, 0x15
@@ -311,6 +335,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         state = ST_STOP;
         __HAL_TIM_DISABLE(&htim1);
         __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
+        cur_period = max_period;
         cur_pos = -1000;
         goto_pos(0, 50, 3);
     }
