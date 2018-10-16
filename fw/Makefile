@@ -71,18 +71,19 @@ Src/stm32f1xx_it.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash_ex.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_spi.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_tim.c \
-cdnet/net/cdnet.c \
-cdnet/net/cdnet_seq.c \
-cdnet/net/cdnet_l0.c \
-cdnet/net/cdnet_l1.c \
-cdnet/net/cdnet_l2.c \
-cdnet/dev/cdctl_bx_it.c \
-cdnet/utils/list.c \
-cdnet/utils/debug.c \
+cdnet/dispatch/cdnet_dispatch.c \
+cdnet/parser/cdnet_l0.c \
+cdnet/parser/cdnet_l1.c \
+cdnet/parser/cdnet_l2.c \
+cdnet/dev/cdctl_it.c \
+cdnet/utils/cd_list.c \
+cdnet/utils/rbtree.c \
+cdnet/utils/cd_debug.c \
 cdnet/utils/hex_dump.c \
-usr/app_config.c \
+usr/config.c \
 usr/common_services.c \
-usr/app_main.c
+usr/app_main.c \
+usr/app_motor.c
 
 # ASM sources
 ASM_SOURCES =  \
@@ -143,7 +144,8 @@ C_INCLUDES =  \
 -IDrivers/STM32F1xx_HAL_Driver/Inc/Legacy \
 -IDrivers/CMSIS/Device/ST/STM32F1xx/Include \
 -IDrivers/CMSIS/Include \
--Icdnet/net \
+-Icdnet/parser \
+-Icdnet/dispatch \
 -Icdnet/utils \
 -Icdnet/dev \
 -Icdnet/arch/stm32 \
@@ -158,7 +160,9 @@ CFLAGS = $(MCU) $(C_DEFS) $(C_INCLUDES) $(OPT) -Wall -fdata-sections -ffunction-
 ifeq ($(DEBUG), 1)
 CFLAGS += -g -gdwarf-2
 endif
-
+ifeq ($(BOOTLOADER), 1)
+CFLAGS += -DBOOTLOADER
+endif
 
 # Generate dependency information
 CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)"
@@ -168,7 +172,11 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)"
 # LDFLAGS
 #######################################
 # link script
+ifeq ($(BOOTLOADER), 1)
+LDSCRIPT = STM32F103C8Tx_FLASH_bl.ld
+else
 LDSCRIPT = STM32F103C8Tx_FLASH.ld
+endif
 
 # libraries
 LIBS = -lc -lm -lnosys 

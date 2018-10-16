@@ -41,7 +41,7 @@
 #include "stm32f1xx_hal.h"
 
 /* USER CODE BEGIN Includes */
-#include "common.h"
+#include "app_main.h"
 
 /* USER CODE END Includes */
 
