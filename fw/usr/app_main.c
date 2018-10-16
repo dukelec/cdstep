@@ -50,6 +50,7 @@ static void device_init(void)
             app_conf.rs485_baudrate_low, app_conf.rs485_baudrate_high,
             &r_spi, &r_rst_n, &r_int_n);
     cdnet_intf_init(&n_intf, &r_dev.cd_dev, app_conf.rs485_net, app_conf.rs485_mac);
+    cdnet_intf_register(&n_intf);
 }
 
 void set_led_state(led_state_t state)
