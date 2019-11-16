@@ -19,7 +19,6 @@ static gpio_t drv_md3 = { .group = DRV_MD3_GPIO_Port, .num = DRV_MD3_Pin };
 static gpio_t drv_step = { .group = DRV_STEP_GPIO_Port, .num = DRV_STEP_Pin };
 static gpio_t drv_dir = { .group = DRV_DIR_GPIO_Port, .num = DRV_DIR_Pin };
 
-static gpio_t pwr_det = { .group = PWR_DET_GPIO_Port, .num = PWR_DET_Pin };
 gpio_t limit_det = { .group = LIMIT_DET_GPIO_Port, .num = LIMIT_DET_Pin };
 
 static cdnet_socket_t pos_sock = { .port = 20 };
