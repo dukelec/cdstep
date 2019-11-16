@@ -12,7 +12,7 @@
 extern UART_HandleTypeDef huart2;
 extern SPI_HandleTypeDef hspi2;
 extern TIM_HandleTypeDef htim1;
-extern TIM_HandleTypeDef htim4;
+extern TIM_HandleTypeDef htim2;
 
 extern gpio_t limit_det;
 
@@ -101,7 +101,7 @@ void app_main(void)
 #else
     printf("\nstart app_main...\n");
 #endif
-    debug_init();
+    debug_init(&app_conf.dbg_en, &app_conf.dbg_dst);
     load_conf();
     device_init();
     common_service_init();

@@ -10,7 +10,7 @@
 #include "app_main.h"
 
 extern TIM_HandleTypeDef htim1;
-extern TIM_HandleTypeDef htim4;
+extern TIM_HandleTypeDef htim2;
 
 static gpio_t drv_en = { .group = DRV_EN_GPIO_Port, .num = DRV_EN_Pin };
 static gpio_t drv_md1 = { .group = DRV_MD1_GPIO_Port, .num = DRV_MD1_Pin };
@@ -79,8 +79,8 @@ void app_motor_init(void)
     HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
     set_led_state(LED_POWERON);
 
-    __HAL_TIM_SET_COMPARE(&htim4, TIM_CHANNEL_1, 300);
-    HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 300);
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 
     __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
     __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);

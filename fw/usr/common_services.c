@@ -91,7 +91,7 @@ static void p1_service_routine(void)
 // device control
 static void p10_service_routine(void)
 {
-    cdnet_packet_t *pkt = cdnet_socket_recvfrom(&sock1);
+    cdnet_packet_t *pkt = cdnet_socket_recvfrom(&sock10);
     if (!pkt)
         return;
 
@@ -111,9 +111,10 @@ static void p10_service_routine(void)
         pkt->dat[0] = 0x80;
         pkt->dst = pkt->src;
         cdnet_socket_sendto(&sock10, pkt);
+    } else {
+        d_debug("p10 ser: ignore\n");
+        list_put(&cdnet_free_pkts, &pkt->node);
     }
-    d_debug("p10 ser: ignore\n");
-    list_put(&cdnet_free_pkts, &pkt->node);
 }
 
 // flash memory manipulation
@@ -123,7 +124,7 @@ static void p11_service_routine(void)
     // read:  0x40, addr_32, len_8   | return [0x80, data]
     // write: 0x61, addr_32 + [data] | return [0x80] on success
 
-    cdnet_packet_t *pkt = cdnet_socket_recvfrom(&sock1);
+    cdnet_packet_t *pkt = cdnet_socket_recvfrom(&sock11);
     if (!pkt)
         return;
 

@@ -14,7 +14,9 @@
 #include "cdbus_uart.h"
 #include "cdctl_it.h"
 #include "modbus_crc.h"
-#include "main.h"
+
+#define P_2F(x) (int)(x), abs(((x)-(int)(x))*100)  // "%d.%.2d"
+#define P_3F(x) (int)(x), abs(((x)-(int)(x))*1000) // "%d.%.3d"
 
 #define APP_CONF_ADDR       0x0801F800 // last page
 
@@ -26,6 +28,9 @@ typedef struct {
     uint8_t         rs485_mac;
     uint32_t        rs485_baudrate_low;
     uint32_t        rs485_baudrate_high;
+
+    bool            dbg_en;
+    cd_sockaddr_t   dbg_dst;
 } __attribute__((packed)) app_conf_t;
 
 
@@ -61,6 +66,7 @@ void load_conf(void);
 void save_conf(void);
 void common_service_init(void);
 void common_service_routine(void);
+void debug_init(bool *en, cd_sockaddr_t *dst);
 
 void set_led_state(led_state_t state);
 

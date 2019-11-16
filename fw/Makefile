@@ -121,7 +121,7 @@ CPU = -mcpu=cortex-m3
 
 
 # mcu
-MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
+MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI) -Wdouble-promotion # -u _printf_float
 
 # macros for gcc
 # AS defines
@@ -173,7 +173,7 @@ CFLAGS += -MMD -MP -MF"$(@:%.o=%.d)" -MT"$(@:%.o=%.d)"
 #######################################
 # link script
 ifeq ($(BOOTLOADER), 1)
-LDSCRIPT = STM32F103C8Tx_FLASH.ld
+LDSCRIPT = STM32F103C8Tx_FLASH_bl.ld
 else
 LDSCRIPT = STM32F103C8Tx_FLASH.ld
 endif
