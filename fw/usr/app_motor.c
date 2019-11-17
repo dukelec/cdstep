@@ -75,7 +75,7 @@ void app_motor_init(void)
     cdnet_socket_bind(&pos_sock, NULL);
     cdnet_socket_bind(&speed_sock, NULL);
 
-    HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+    //HAL_NVIC_EnableIRQ(EXTI1_IRQn);
     HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
     set_led_state(LED_POWERON);
 
@@ -101,7 +101,7 @@ static void pos_mode_service_routine(void)
     if (!pkt)
         return;
 
-    if (pkt->len != 17 || pkt->dat[0] != 0x60) {
+    if (pkt->len != 17 || pkt->dat[0] != 0x20) {
         d_warn("pos mode: wrong len: %d\n", pkt->len);
         list_put(&cdnet_free_pkts, &pkt->node);
         return;

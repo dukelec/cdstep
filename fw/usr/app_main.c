@@ -48,7 +48,7 @@ static void device_init(void)
 
     cdctl_dev_init(&r_dev, &frame_free_head, app_conf.rs485_mac,
             app_conf.rs485_baudrate_low, app_conf.rs485_baudrate_high,
-            &r_spi, &r_rst_n, &r_int_n);
+            &r_spi, &r_rst_n);// &r_int_n);
     cdnet_intf_init(&n_intf, &r_dev.cd_dev, app_conf.rs485_net, app_conf.rs485_mac);
     cdnet_intf_register(&n_intf);
 }
@@ -80,6 +80,49 @@ void set_led_state(led_state_t state)
     }
 }
 
+extern uint32_t end; // end of bss
+#define STACK_CHECK_SKIP 0x200
+#define STACK_CHECK_SIZE (64 + STACK_CHECK_SKIP)
+
+static void stack_check_init(void)
+{
+    int i;
+    d_debug("stack_check_init: skip: %p ~ %p, to %p\n",
+            &end, &end + STACK_CHECK_SKIP, &end + STACK_CHECK_SIZE);
+    for (i = STACK_CHECK_SKIP; i < STACK_CHECK_SIZE; i+=4)
+        *(uint32_t *)(&end + i) = 0xababcdcd;
+}
+
+static void stack_check(void)
+{
+    int i;
+    for (i = STACK_CHECK_SKIP; i < STACK_CHECK_SIZE; i+=4) {
+        if (*(uint32_t *)(&end + i) != 0xababcdcd) {
+            printf("stack overflow %p (skip: %p ~ %p): %08lx\n",
+                    &end + i, &end, &end + STACK_CHECK_SKIP, *(uint32_t *)(&end + i));
+            while (true);
+        }
+    }
+}
+
+#if 0
+static void dump_hw_status(void)
+{
+    static int t_l = 0;
+    if (get_systick() - t_l > 8000) {
+        t_l = get_systick();
+        d_debug("ctl: state %d, t_len %d, r_len %d, irq %d\n",
+                r_dev.state, r_dev.tx_head.len, r_dev.rx_head.len,
+                !gpio_get_value(r_dev.int_n));
+        d_debug("  r_cnt %d (lost %d, err %d, no-free %d), t_cnt %d (cd %d, err %d)\n",
+                r_dev.rx_cnt, r_dev.rx_lost_cnt, r_dev.rx_error_cnt,
+                r_dev.rx_no_free_node_cnt,
+                r_dev.tx_cnt, r_dev.tx_cd_cnt, r_dev.tx_error_cnt);
+    }
+}
+#endif
+
+
 #ifdef BOOTLOADER
 #define APP_ADDR 0x08010000 // offset: 64KB
 
@@ -101,7 +144,9 @@ void app_main(void)
 #else
     printf("\nstart app_main...\n");
 #endif
-    debug_init(&app_conf.dbg_en, &app_conf.dbg_dst);
+    //debug_init(&app_conf.dbg_en, &app_conf.dbg_dst);
+    debug_init();
+    stack_check_init();
     load_conf();
     device_init();
     common_service_init();
@@ -118,6 +163,9 @@ void app_main(void)
             jump_to_app();
 #endif
 
+        stack_check();
+        //dump_hw_status();
+        cdctl_routine(&r_dev);
         cdnet_intf_routine(); // handle cdnet
         common_service_routine();
         app_motor();
@@ -129,12 +177,13 @@ void app_main(void)
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == r_int_n.num) {
-        cdctl_int_isr(&r_dev);
+        //cdctl_int_isr(&r_dev);
     } else if (GPIO_Pin == limit_det.num) {
         limit_det_isr();
     }
 }
 
+#if 0
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {
     cdctl_spi_isr(&r_dev);
@@ -149,5 +198,6 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 }
 void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 {
-    d_error("spi error...\n");
+    d_error("spi error... [%08lx]\n", hspi->ErrorCode);
 }
+#endif

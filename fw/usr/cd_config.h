@@ -16,7 +16,7 @@
 #define DEBUG
 #define VERBOSE
 #define DBG_STR_LEN         160
-#define DBG_TX_IT
+//#define DBG_TX_IT
 //#define LIST_DEBUG
 
 #define CDUART_IRQ_SAFE

@@ -73,10 +73,10 @@ cdnet/dispatch/cdnet_dispatch.c \
 cdnet/parser/cdnet_l0.c \
 cdnet/parser/cdnet_l1.c \
 cdnet/parser/cdnet_l2.c \
-cdnet/dev/cdctl_it.c \
+cdnet/dev/cdctl.c \
 cdnet/utils/cd_list.c \
 cdnet/utils/rbtree.c \
-cdnet/utils/cd_debug.c \
+cdnet/utils/cd_debug_uart.c \
 cdnet/utils/hex_dump.c \
 usr/config.c \
 usr/common_services.c \

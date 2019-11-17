@@ -56,8 +56,8 @@ static void p1_service_routine(void)
     if (!pkt)
         return;
 
-    if (pkt->len && (pkt->dat[0] == 0x40 || pkt->dat[0] == 0x41)) {
-        if (pkt->dat[0] == 0x41) {
+    if (pkt->len && (pkt->dat[0] == 0x00 || pkt->dat[0] == 0x01)) {
+        if (pkt->dat[0] == 0x01) {
             max_time = *(uint16_t *)(pkt->dat + 1);
             wait_time = rand() / (RAND_MAX / max_time);
             mac_start = pkt->dat[3];
@@ -97,14 +97,14 @@ static void p10_service_routine(void)
 
     if (pkt->len && (pkt->dat[0] == 0x60 || pkt->dat[0] == 0x20)) {
         NVIC_SystemReset(); // TODO: return before reset
-    } else if (pkt->len && pkt->dat[0] == 0x61) {
+    } else if (pkt->len && pkt->dat[0] == 0x21) {
         d_debug("p10 ser: save config to flash\n");
         save_conf();
         pkt->len = 1;
         pkt->dat[0] = 0x80;
         pkt->dst = pkt->src;
         cdnet_socket_sendto(&sock10, pkt);
-    } else if (pkt->len && pkt->dat[0] == 0x62) {
+    } else if (pkt->len && pkt->dat[0] == 0x22) {
         d_debug("p10 ser: stay in bootloader\n");
         app_conf.bl_wait = 0xff;
         pkt->len = 1;
@@ -120,15 +120,15 @@ static void p10_service_routine(void)
 // flash memory manipulation
 static void p11_service_routine(void)
 {
-    // erase: 0x6f, addr_32, len_32  | return [0x80] on success
-    // read:  0x40, addr_32, len_8   | return [0x80, data]
-    // write: 0x61, addr_32 + [data] | return [0x80] on success
+    // erase: 0x2f, addr_32, len_32  | return [0x80] on success
+    // read:  0x00, addr_32, len_8   | return [0x80, data]
+    // write: 0x20, addr_32 + [data] | return [0x80] on success
 
     cdnet_packet_t *pkt = cdnet_socket_recvfrom(&sock11);
     if (!pkt)
         return;
 
-    if (pkt->dat[0] == 0x6f && pkt->len == 9) {
+    if (pkt->dat[0] == 0x2f && pkt->len == 9) {
         uint8_t ret;
         uint32_t err_page = 0;
         FLASH_EraseInitTypeDef f;
@@ -149,7 +149,7 @@ static void p11_service_routine(void)
         pkt->len = 1;
         pkt->dat[0] = ret == HAL_OK ? 0x80 : 0x81;
 
-    } else if (pkt->dat[0] == 0x40 && pkt->len == 6) {
+    } else if (pkt->dat[0] == 0x00 && pkt->len == 6) {
         uint32_t *src_dat = (uint32_t *) *(uint32_t *)(pkt->dat + 1);
         uint8_t len = pkt->dat[5];
         uint8_t cnt = (len + 3) / 4;
@@ -165,7 +165,7 @@ static void p11_service_routine(void)
         pkt->dat[0] = 0x80;
         pkt->len = min(cnt * 4, len) + 1;
 
-    } else if (pkt->dat[0] == 0x61 && pkt->len > 5) {
+    } else if (pkt->dat[0] == 0x20 && pkt->len > 5) {
         uint8_t ret;
         uint32_t *dst_dat = (uint32_t *) *(uint32_t *)(pkt->dat + 1);
         uint8_t len = pkt->len - 5;

@@ -12,7 +12,8 @@
 
 #include "cdnet_dispatch.h"
 #include "cdbus_uart.h"
-#include "cdctl_it.h"
+//#include "cdctl_it.h"
+#include "cdctl.h"
 #include "modbus_crc.h"
 
 #define P_2F(x) (int)(x), abs(((x)-(int)(x))*100)  // "%d.%.2d"
@@ -66,7 +67,9 @@ void load_conf(void);
 void save_conf(void);
 void common_service_init(void);
 void common_service_routine(void);
-void debug_init(bool *en, cd_sockaddr_t *dst);
+//void debug_init(bool *en, cd_sockaddr_t *dst);
+void debug_init(void);
+void cdctl_routine(cdctl_dev_t *dev);
 
 void set_led_state(led_state_t state);
 
