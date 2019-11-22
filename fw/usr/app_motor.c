@@ -77,7 +77,7 @@ void app_motor_init(void)
     HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
     set_led_state(LED_POWERON);
 
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 300);
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 450);
     HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 
     __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
