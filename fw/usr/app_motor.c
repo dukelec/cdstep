@@ -103,6 +103,17 @@ static void pos_mode_service_routine(void)
     if (!pkt)
         return;
 
+    if (pkt->dat[0] == 0x20) {
+        pkt->len = 10;
+        pkt->dat[0] = 0x80 | !gpio_get_value(&limit_det) << 4 | state;
+        pkt->dat[1] = cmd_pend_head.len;
+        *(int *)(pkt->dat + 2) = cur_pos;
+        *(int *)(pkt->dat + 6) = 1000000 / cur_period;
+        pkt->dst = pkt->src;
+        cdnet_socket_sendto(&pos_sock, pkt);
+        return;
+    }
+
     if (pkt->dat[0] != 0x21 && pkt->dat[0] != 0x22) {
         d_warn("pos mode: wrong cmd\n");
         list_put(&cdnet_free_pkts, &pkt->node);
@@ -115,7 +126,7 @@ static void pos_mode_service_routine(void)
             cmd->pos = *(int *)(pkt->dat + 1);
             cmd->period = 1000000 / *(int *)(pkt->dat + 5);
             cmd->accel = *(int *)(pkt->dat + 9);
-            cmd->time = 0;
+            cmd->time = -1;
             d_debug("pos add: %d %d(%d) %d (len: %d)\n",
                     cmd->pos, *(int *)(pkt->dat + 5), cmd->period,
                     cmd->accel, cmd_pend_head.len);
@@ -143,7 +154,7 @@ void app_motor(void)
         }
     } else if (state == ST_STOP && cmd_pend_head.len) {
         cmd_t *cmd = list_get_entry(&cmd_pend_head, cmd_t);
-        if (cmd->time) {
+        if (cmd->time >= 0) {
             state = ST_WAIT;
             wait_until = get_systick() + cmd->time;
         } else {
@@ -159,15 +170,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     //d_debug("tim: t: %ld, cur_pos: %d, cur_period: %d\n",
     //        get_systick(), cur_pos, cur_period);
     gpio_get_value(&drv_dir) ? cur_pos++ : cur_pos--;
+    gpio_set_value(&drv_step, 1);
+    gpio_set_value(&drv_step, 0);
 
-    if (cur_pos == tgt_pos) {
+    if (cur_pos == tgt_pos && tgt_period >= 0) {
         cmd_t *cmd = list_entry_safe(cmd_pend_head.first, cmd_t);
         d_debug("tim: arrive pos %d, period: %d\n", tgt_pos, cur_period);
-        if (cmd && !cmd->time) {
+        if (cmd && cmd->time < 0) {
             goto_pos(cmd->pos, cmd->period, cmd->accel);
             list_put(&cmd_free_head, list_get(&cmd_pend_head));
         } else {
-            cur_period = INIT_PERIOD;
+            cur_period = max_period;
             state = ST_STOP;
             return;
         }
@@ -175,17 +188,17 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     {
         cmd_t *cmd = list_entry_safe(cmd_pend_head.first, cmd_t);
-        if (cmd && !cmd->time && (gpio_get_value(&drv_dir) == (cmd->pos >= tgt_pos)))
+        if (cmd && cmd->time < 0 && (gpio_get_value(&drv_dir) == (cmd->pos >= tgt_pos)))
             end_period = clip(cmd->period, min_period, max_period);
         else
-            end_period = INIT_PERIOD;
+            end_period = max_period;
     }
 
     if (tgt_period == -1) {
         cur_period += min(abs(max_period - cur_period), cur_accel);
         if (cur_period >= max_period) {
             d_debug("tim: early stop at %d, target: %d\n", cur_pos, tgt_pos);
-            cur_period = INIT_PERIOD;
+            cur_period = max_period;
             state = ST_STOP;
             return;
         }
@@ -199,18 +212,16 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     __HAL_TIM_SET_AUTORELOAD(&htim1, cur_period);
     __HAL_TIM_ENABLE(&htim1);
-
-    gpio_set_value(&drv_step, 1);
-    gpio_set_value(&drv_step, 0);
 }
 
 void limit_det_isr(void)
 {
     d_debug("lim: detected\n");
-    state = ST_STOP;
-    __HAL_TIM_DISABLE(&htim1);
-    __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
-    cur_period = max_period;
-    cur_pos = -1000;
+    //state = ST_STOP;
+    //__HAL_TIM_DISABLE(&htim1);
+    //__HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
+    //cur_period = max_period;
+    cur_pos = 0;
+    tgt_period = -1;
     //goto_pos(0, 50, 3);
 }
