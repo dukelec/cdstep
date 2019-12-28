@@ -103,7 +103,7 @@ static void pos_mode_service_routine(void)
     if (!pkt)
         return;
 
-    if (pkt->dat[0] == 0x20) {
+    if (pkt->dat[0] == 0x00) {
         pkt->len = 10;
         pkt->dat[0] = 0x80 | !gpio_get_value(&limit_det) << 4 | state;
         pkt->dat[1] = cmd_pend_head.len;
