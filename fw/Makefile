@@ -70,18 +70,19 @@ Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_flash_ex.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_spi.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_tim.c \
 cdnet/dispatch/cdnet_dispatch.c \
+cdnet/dispatch/helper.c \
 cdnet/parser/cdnet_l0.c \
 cdnet/parser/cdnet_l1.c \
-cdnet/parser/cdnet_l2.c \
-cdnet/dev/cdctl.c \
+cdnet/dev/cdctl_it.c \
 cdnet/utils/cd_list.c \
 cdnet/utils/rbtree.c \
-cdnet/utils/cd_debug_uart.c \
+cdnet/utils/cd_debug.c \
 cdnet/utils/hex_dump.c \
 usr/config.c \
 usr/common_services.c \
 usr/app_main.c \
 usr/app_motor.c \
+usr/raw_dbg.c \
 Drivers/STM32F1xx_HAL_Driver/Src/stm32f1xx_hal_exti.c \
 Src/system_stm32f1xx.c
 

@@ -4,7 +4,7 @@
  * Copyright (c) 2017, DUKELEC, Inc.
  * All rights reserved.
  *
- * Author: Duke Fong <duke@dukelec.com>
+ * Author: Duke Fong <d@d-l.io>
  */
 
 #include "app_main.h"
@@ -12,9 +12,10 @@
 static char cpu_id[25];
 static char info_str[100];
 
-static cdnet_socket_t sock1 = { .port = 1 };
-static cdnet_socket_t sock10 = { .port = 10 };
-static cdnet_socket_t sock11 = { .port = 11 };
+static cdn_sock_t sock1 = { .port = 1, .ns = &dft_ns };
+static cdn_sock_t sock5 = { .port = 5, .ns = &dft_ns };
+static cdn_sock_t sock6 = { .port = 6, .ns = &dft_ns };
+static cdn_sock_t sock8 = { .port = 8, .ns = &dft_ns };
 
 
 static void get_uid(char *buf)
@@ -34,11 +35,7 @@ static void init_info_str(void)
 {
     // M: model; S: serial string; HW: hardware version; SW: software version
     get_uid(cpu_id);
-#ifdef BOOTLOADER
-    sprintf(info_str, "M: motor master (bl); S: %s; SW: %s", cpu_id, SW_VER);
-#else
-    sprintf(info_str, "M: motor master; S: %s; SW: %s", cpu_id, SW_VER);
-#endif
+    sprintf(info_str, "M: mdrv-step; S: %s; SW: %s", cpu_id, SW_VER);
     d_info("info: %s\n", info_str);
 }
 
@@ -46,85 +43,31 @@ static void init_info_str(void)
 // device info
 static void p1_service_routine(void)
 {
-    uint16_t max_time = 0;
-    uint16_t wait_time = 0;
-    uint8_t mac_start = 0;
-    uint8_t mac_end = 255;
-    char string[100] = "";
-
-    cdnet_packet_t *pkt = cdnet_socket_recvfrom(&sock1);
+    cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock1);
     if (!pkt)
         return;
 
-    if (pkt->len && (pkt->dat[0] == 0x00 || pkt->dat[0] == 0x01)) {
-        if (pkt->dat[0] == 0x01) {
-            max_time = *(uint16_t *)(pkt->dat + 1);
-            wait_time = rand() / (RAND_MAX / max_time);
-            mac_start = pkt->dat[3];
-            mac_end = pkt->dat[4];
-            strncpy(string, (char *)pkt->dat + 5, pkt->len - 5);
-        }
-
-        d_debug("dev_info: wait %d (%d), [%d, %d], str: %s\n",
-                wait_time, max_time, mac_start, mac_end, string);
-
-        cdnet_intf_t *intf = cdnet_route_search(&pkt->src.addr, NULL);
-        uint8_t intf_mac = intf->mac;
-
-        if (clip(intf_mac, mac_start, mac_end) == intf_mac &&
-                strstr(info_str, string) != NULL) {
-            uint32_t t_last = get_systick();
-            while (get_systick() - t_last < wait_time * 1000 / SYSTICK_US_DIV);
-            pkt->dat[0] = 0x80;
-            strcpy((char *)pkt->dat + 1, info_str);
-            pkt->len = strlen(info_str) + 1;
-            pkt->dst = pkt->src;
-            cdnet_socket_sendto(&sock1, pkt);
-            return;
-        }
+    if (pkt->len == 1 && pkt->dat[0] == 0) {
+        pkt->dat[0] = 0x80;
+        strcpy((char *)pkt->dat + 1, info_str);
+        pkt->len = strlen(info_str) + 1;
+        pkt->dst = pkt->src;
+        cdn_sock_sendto(&sock1, pkt);
+        return;
     }
     d_debug("p1 ser: ignore\n");
-    list_put(&cdnet_free_pkts, &pkt->node);
+    list_put(&dft_ns.free_pkts, &pkt->node);
 }
 
-
-// device control
-static void p10_service_routine(void)
-{
-    cdnet_packet_t *pkt = cdnet_socket_recvfrom(&sock10);
-    if (!pkt)
-        return;
-
-    if (pkt->len && (pkt->dat[0] == 0x60 || pkt->dat[0] == 0x20)) {
-        NVIC_SystemReset(); // TODO: return before reset
-    } else if (pkt->len && pkt->dat[0] == 0x21) {
-        d_debug("p10 ser: save config to flash\n");
-        save_conf();
-        pkt->len = 1;
-        pkt->dat[0] = 0x80;
-        pkt->dst = pkt->src;
-        cdnet_socket_sendto(&sock10, pkt);
-    } else if (pkt->len && pkt->dat[0] == 0x22) {
-        d_debug("p10 ser: stay in bootloader\n");
-        app_conf.bl_wait = 0xff;
-        pkt->len = 1;
-        pkt->dat[0] = 0x80;
-        pkt->dst = pkt->src;
-        cdnet_socket_sendto(&sock10, pkt);
-    } else {
-        d_debug("p10 ser: ignore\n");
-        list_put(&cdnet_free_pkts, &pkt->node);
-    }
-}
 
 // flash memory manipulation
-static void p11_service_routine(void)
+static void p8_service_routine(void)
 {
     // erase: 0x2f, addr_32, len_32  | return [0x80] on success
     // read:  0x00, addr_32, len_8   | return [0x80, data]
     // write: 0x20, addr_32 + [data] | return [0x80] on success
 
-    cdnet_packet_t *pkt = cdnet_socket_recvfrom(&sock11);
+    cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock8);
     if (!pkt)
         return;
 
@@ -144,26 +87,17 @@ static void p11_service_routine(void)
             ret = HAL_FLASHEx_Erase(&f, &err_page);
         ret |= HAL_FLASH_Lock();
 
-        d_debug("nvm erase: %08x +%08x, %08x, ret: %d\n",
-                addr, len, err_page, ret);
+        d_debug("nvm erase: %08x +%08x, %08x, ret: %d\n", addr, len, err_page, ret);
         pkt->len = 1;
         pkt->dat[0] = ret == HAL_OK ? 0x80 : 0x81;
 
     } else if (pkt->dat[0] == 0x00 && pkt->len == 6) {
         uint32_t *src_dat = (uint32_t *) *(uint32_t *)(pkt->dat + 1);
-        uint8_t len = pkt->dat[5];
-        uint8_t cnt = (len + 3) / 4;
-
-        uint32_t *dst_dat = (uint32_t *)(pkt->dat + 1);
-        uint8_t i;
-
-        cnt = min(cnt, CDNET_MAX_DAT / 4);
-
-        for (i = 0; i < cnt; i++)
-            *(dst_dat + i) = *(src_dat + i);
-        d_debug("nvm read: %08x %d(%d)\n", src_dat, len, cnt);
+        uint8_t len = min(pkt->dat[5], CDN_MAX_DAT - 1);
+        memcpy(pkt->dat + 1, src_dat, len);
+        d_debug("nvm read: %08x %d\n", src_dat, len);
         pkt->dat[0] = 0x80;
-        pkt->len = min(cnt * 4, len) + 1;
+        pkt->len = len + 1;
 
     } else if (pkt->dat[0] == 0x20 && pkt->len > 5) {
         uint8_t ret;
@@ -175,38 +109,169 @@ static void p11_service_routine(void)
 
         ret = HAL_FLASH_Unlock();
         for (i = 0; ret == HAL_OK && i < cnt; i++)
-            ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD,
-                    (uint32_t)(dst_dat + i), *(src_dat + i));
+            ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (uint32_t)(dst_dat + i), *(src_dat + i));
         ret |= HAL_FLASH_Lock();
 
-        d_debug("nvm write: %08x %d(%d), ret: %d\n",
-                dst_dat, pkt->len - 5, cnt, ret);
+        d_debug("nvm write: %08x %d(%d), ret: %d\n", dst_dat, pkt->len - 5, cnt, ret);
         pkt->len = 1;
         pkt->dat[0] = ret == HAL_OK ? 0x80 : 0x81;
 
     } else {
-        list_put(&cdnet_free_pkts, &pkt->node);
+        list_put(&dft_ns.free_pkts, &pkt->node);
         d_warn("nvm: wrong cmd, len: %d\n", pkt->len);
         return;
     }
 
     pkt->dst = pkt->src;
-    cdnet_socket_sendto(&sock11, pkt);
+    cdn_sock_sendto(&sock8, pkt);
+    return;
+}
+
+
+// csa manipulation
+static void p5_service_routine(void)
+{
+    // read:  0x00, offset_16, len_8   | return [0x80, data]
+    // write: 0x20, offset_16 + [data] | return [0x80] on success
+
+    cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock5);
+    if (!pkt)
+        return;
+
+    if (pkt->dat[0] == 0x00 && pkt->len == 4) {
+        uint16_t offset = *(uint16_t *)(pkt->dat + 1);
+        uint8_t len = min(pkt->dat[3], CDN_MAX_DAT - 1);
+        memcpy(pkt->dat + 1, ((void *) &csa) + offset, len);
+        d_debug("csa read: %04x %d\n", offset, len);
+        pkt->dat[0] = 0x80;
+        pkt->len = len + 1;
+
+    } else if (pkt->dat[0] == 0x20 && pkt->len > 3) {
+        uint16_t offset = *(uint16_t *)(pkt->dat + 1);
+        uint8_t len = pkt->len - 3;
+        uint8_t *src_dat = pkt->dat + 3;
+        uint32_t flags;
+
+        for (int i = 0; i < regr_wa_num; i++) {
+            regr_t *regr = regr_wa + i;
+            uint16_t start = clip(offset, regr->offset, regr->offset + regr->size);
+            uint16_t end = clip(offset + len, regr->offset, regr->offset + regr->size);
+            if (start == end) {
+                printf("csa i%d: [%x, %x), [%x, %x) -> [%x, %x)\n",
+                        i, regr->offset, regr->offset + regr->size,
+                        offset, offset + len,
+                        start, end);
+                continue;
+            }
+
+            printf("csa @ %p, %p <- %p, len %d, dat[0]: %x\n",
+                    &csa, ((void *) &csa) + start, src_dat + (start - offset), end - start,
+                    *(src_dat + (start - offset)));
+
+            local_irq_save(flags);
+            memcpy(((void *) &csa) + start, src_dat + (start - offset), end - start);
+            local_irq_restore(flags);
+        }
+
+        d_debug("csa write: %04x %d\n", offset, len);
+        pkt->len = 1;
+        pkt->dat[0] = 0x80;
+
+        if (csa.save_conf) {
+            csa.save_conf = false;
+            pkt->dat[0] |= save_conf();
+            printf("csa: save config to flash, ret: %x\n", pkt->dat[0]);
+        }
+
+    } else {
+        list_put(&dft_ns.free_pkts, &pkt->node);
+        d_warn("csa: wrong cmd, len: %d\n", pkt->len);
+        return;
+    }
+
+    pkt->dst = pkt->src;
+    cdn_sock_sendto(&sock5, pkt);
+    return;
+}
+
+// qxchg
+static void p6_service_routine(void)
+{
+    cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock6);
+    if (!pkt)
+        return;
+
+    if (pkt->dat[0] == 0x20 && pkt->len >= 1) {
+        uint8_t *src_dat = pkt->dat + 1;
+        uint8_t *dst_dat = pkt->dat + 1;
+        uint32_t flags;
+
+        local_irq_save(flags);
+        for (int i = 0; i < 10; i++) {
+            regr_t *regr = csa.qxchg_set + i;
+            if (!regr->size)
+                break;
+            uint16_t lim_size = min(pkt->len - (src_dat - pkt->dat), regr->size);
+            if (!lim_size)
+                break;
+            memcpy(((void *) &csa) + regr->offset, src_dat, lim_size);
+            src_dat += lim_size;
+        }
+        for (int i = 0; i < 10; i++) {
+            regr_t *regr = csa.qxchg_ret + i;
+            if (!regr->size)
+                break;
+            memcpy(dst_dat, ((void *) &csa) + regr->offset, regr->size);
+            dst_dat += regr->size;
+        }
+        local_irq_restore(flags);
+
+        pkt->len = dst_dat - pkt->dat;
+        pkt->dat[0] = 0x80;
+        d_debug("qxchg: i %d, o %d\n", src_dat - pkt->dat, pkt->len);
+
+    } else if (pkt->dat[0] == 0x00 && pkt->len == 1) {
+            uint8_t *dst_dat = pkt->dat + 1;
+            uint32_t flags;
+
+            local_irq_save(flags);
+            for (int i = 0; i < 10; i++) {
+                regr_t *regr = csa.qxchg_ro + i;
+                if (!regr->size)
+                    break;
+                memcpy(dst_dat, ((void *) &csa) + regr->offset, regr->size);
+                dst_dat += regr->size;
+            }
+            local_irq_restore(flags);
+
+    } else {
+        list_put(&dft_ns.free_pkts, &pkt->node);
+        d_warn("qxchg: wrong cmd, len: %d\n", pkt->len);
+        return;
+    }
+
+    pkt->dst = pkt->src;
+    cdn_sock_sendto(&sock6, pkt);
     return;
 }
 
 
 void common_service_init(void)
 {
-    cdnet_socket_bind(&sock1, NULL);
-    cdnet_socket_bind(&sock10, NULL);
-    cdnet_socket_bind(&sock11, NULL);
+    cdn_sock_bind(&sock1);
+    cdn_sock_bind(&sock5);
+    cdn_sock_bind(&sock6);
+    cdn_sock_bind(&sock8);
     init_info_str();
 }
 
 void common_service_routine(void)
 {
+    if (csa.do_reboot)
+        NVIC_SystemReset();
     p1_service_routine();
-    p10_service_routine();
-    p11_service_routine();
+    p5_service_routine();
+    p6_service_routine();
+    p8_service_routine();
 }
+
