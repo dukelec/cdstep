@@ -21,9 +21,9 @@ csa_t csa = {
         .conf_ver = APP_CONF_VER,
 
         .bus_mac = 254,
-        .bus_baud_low = 115200,
-        .bus_baud_high = 115200,
-        .dbg_en = false,
+        .bus_baud_low = 1000000,
+        .bus_baud_high = 1000000,
+        .dbg_en = true,
         .dbg_dst = { .addr = {0x80, 0x00, 0x00}, .port = 9 },
 
         .qxchg_set = {
@@ -47,10 +47,8 @@ csa_t csa = {
                 }
         },
 
-        .tc_speed = 20000, // max speed is about 200000
-        .tc_accel = 5000,
-        .tc_accel_max = 6000,
-        .tc_speed_min = 1000
+        .tc_speed = 10000, // max speed is about 200000
+        .tc_accel = 5000
 };
 
 
@@ -106,20 +104,20 @@ int save_conf(void)
 
 
 #define CSA_SHOW(_x) \
-        printf("   R_" #_x " = 0x%04x # len: %d\n", offsetof(csa_t, _x), sizeof(csa._x));
+        d_debug("   R_" #_x " = 0x%04x # len: %d\n", offsetof(csa_t, _x), sizeof(csa._x));
 
 #define CSA_SHOW_SUB(_x, _y_t, _y) \
-        printf("   R_" #_x "_" #_y " = 0x%04x # len: %d\n", offsetof(csa_t, _x) + offsetof(_y_t, _y), sizeof(csa._x._y));
+        d_debug("   R_" #_x "_" #_y " = 0x%04x # len: %d\n", offsetof(csa_t, _x) + offsetof(_y_t, _y), sizeof(csa._x._y));
 
 void csa_list_show(void)
 {
-    printf("csa_list_show:\n\n");
+    d_debug("csa_list_show:\n\n");
 
     CSA_SHOW(conf_ver);
     CSA_SHOW(conf_from);
     CSA_SHOW(do_reboot);
     CSA_SHOW(save_conf);
-    printf("\n");
+    d_debug("\n");
 
     CSA_SHOW(bus_mac);
     CSA_SHOW(bus_baud_low);
@@ -127,19 +125,18 @@ void csa_list_show(void)
     CSA_SHOW(dbg_en);
     CSA_SHOW_SUB(dbg_dst, cdn_sockaddr_t, addr);
     CSA_SHOW_SUB(dbg_dst, cdn_sockaddr_t, port);
-    printf("\n");
+    d_debug("\n");
 
     CSA_SHOW(tc_pos);
     CSA_SHOW(tc_speed);
     CSA_SHOW(tc_accel);
-    CSA_SHOW(tc_accel_max);
     CSA_SHOW(tc_speed_min);
-    printf("\n");
+    d_debug("\n");
 
     CSA_SHOW(state);
     CSA_SHOW(tc_state);
     CSA_SHOW(cur_pos);
     CSA_SHOW(tc_vc);
     CSA_SHOW(tc_ac);
-    printf("\n");
+    d_debug("\n");
 }

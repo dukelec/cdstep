@@ -72,7 +72,6 @@ typedef struct {
     int32_t         tc_pos;
     uint32_t        tc_speed;
     uint32_t        tc_accel;
-    uint32_t        tc_accel_max;
     uint32_t        tc_speed_min;
 
     // end of flash
@@ -98,6 +97,7 @@ extern cdn_ns_t dft_ns;
 void app_main(void);
 void load_conf(void);
 int save_conf(void);
+void csa_list_show(void);
 void common_service_init(void);
 void common_service_routine(void);
 

@@ -116,6 +116,7 @@ void app_main(void)
     raw_dbg_init();
     printf("conf: %s\n", csa.conf_from ? "load from flash" : "use default");
     d_info("conf: %s\n", csa.conf_from ? "load from flash" : "use default");
+    csa_list_show();
     app_motor_init();
 
     while (true) {

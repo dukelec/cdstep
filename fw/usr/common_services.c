@@ -230,6 +230,9 @@ static void p6_service_routine(void)
         pkt->dat[0] = 0x80;
         d_debug("qxchg: i %d, o %d\n", src_dat - pkt->dat, pkt->len);
 
+        if (csa.state && csa.tc_state == 2)
+            csa.tc_state = 1;
+
     } else if (pkt->dat[0] == 0x00 && pkt->len == 1) {
             uint8_t *dst_dat = pkt->dat + 1;
             uint32_t flags;
