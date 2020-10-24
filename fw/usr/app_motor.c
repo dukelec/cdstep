@@ -76,7 +76,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         return;
     }
 
-    if (csa.tc_pos != csa.cur_pos && lroundf(csa.tc_vc) > csa.tc_speed_min
+    if (csa.tc_pos != csa.cur_pos && lroundf(fabsf(csa.tc_vc)) > csa.tc_speed_min
             && sign(csa.tc_pos - csa.cur_pos) != sign(csa.tc_vc)) { // different direction
 
         csa.tc_ac = sign(csa.tc_pos - csa.cur_pos) * min((float)csa.tc_accel, fabsf(csa.tc_vc));
@@ -94,13 +94,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     if (fabsf(csa.tc_ac) < csa.tc_accel) {
         if (csa.tc_state == 1) {
-            float delta_v = csa.tc_accel / max((float)csa.tc_speed_min, csa.tc_vc);
+            float delta_v = csa.tc_accel / max((float)csa.tc_speed_min, fabsf(csa.tc_vc));
 
             csa.tc_vc += sign(csa.tc_pos - csa.cur_pos) * delta_v;
             csa.tc_vc = clip(csa.tc_vc, -(float)csa.tc_speed, (float)csa.tc_speed);
         }
     } else {
-        float delta_v = csa.tc_ac / max((float)csa.tc_speed_min, csa.tc_vc);
+        float delta_v = csa.tc_ac / max((float)csa.tc_speed_min, fabsf(csa.tc_vc));
         csa.tc_vc += delta_v;
         csa.tc_state = 2;
     }

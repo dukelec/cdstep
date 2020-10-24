@@ -49,8 +49,8 @@ void raw_dbg(int idx)
             pkt_raw[idx]->dst = csa.dbg_raw_dst;
             pkt_raw[idx]->dat[0] = 0x40 | idx;
             //*(uint32_t *)(pkt_raw[idx]->dat + 1) = csa.loop_cnt;
-            pkt_raw[idx]->dat[5] = csa.dbg_raw_skip[idx];
-            pkt_raw[idx]->len = 2;
+            //pkt_raw[idx]->dat[5] = csa.dbg_raw_skip[idx];
+            pkt_raw[idx]->len = 1;
         }
     }
     if (!pkt_raw[idx])

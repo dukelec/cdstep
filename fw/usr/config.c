@@ -40,6 +40,7 @@ csa_t csa = {
         .dbg_raw = {
                 {
                         { .offset = offsetof(csa_t, time_cnt), .size = 4 },
+
                         { .offset = offsetof(csa_t, tc_pos), .size = 4 },
                         { .offset = offsetof(csa_t, tc_speed), .size = 4 },
                         { .offset = offsetof(csa_t, tc_state), .size = 1 },
@@ -48,7 +49,8 @@ csa_t csa = {
         },
 
         .tc_speed = 10000, // max speed is about 200000
-        .tc_accel = 5000
+        .tc_accel = 5000,
+        .tc_speed_min = 100
 };
 
 
@@ -126,6 +128,19 @@ void csa_list_show(void)
     CSA_SHOW_SUB(dbg_dst, cdn_sockaddr_t, addr);
     CSA_SHOW_SUB(dbg_dst, cdn_sockaddr_t, port);
     d_debug("\n");
+
+    CSA_SHOW(qxchg_set);
+    CSA_SHOW(qxchg_ret);
+    CSA_SHOW(qxchg_ro);
+    d_info("\n");
+
+    CSA_SHOW_SUB(dbg_raw_dst, cdn_sockaddr_t, addr);
+    CSA_SHOW_SUB(dbg_raw_dst, cdn_sockaddr_t, port);
+    CSA_SHOW(dbg_raw_msk);
+    CSA_SHOW(dbg_raw_th);
+    CSA_SHOW(dbg_raw_skip);
+    CSA_SHOW(dbg_raw);
+    d_info("\n");
 
     CSA_SHOW(tc_pos);
     CSA_SHOW(tc_speed);
