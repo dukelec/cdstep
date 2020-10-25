@@ -159,7 +159,7 @@ static uint8_t csa_w_hock(bool rw, uint16_t offset, uint8_t len, uint8_t *dat)
 {
     uint8_t ret = 0;
     for (int i = 0; i < csa_w_hook_num; i++) {
-        hook_func_t hook_func = rw ? csa_r_hook[i].after : csa_r_hook[i].before;
+        hook_func_t hook_func = rw ? csa_w_hook[i].after : csa_w_hook[i].before;
         if (hook_func) {
             regr_t *regr = &csa_w_hook[i].range;
             uint16_t start = clip(offset, regr->offset, regr->offset + regr->size);
