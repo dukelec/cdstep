@@ -36,9 +36,7 @@ static void device_init(void)
     for (int i = 0; i < PACKET_MAX; i++)
         list_put(&dft_ns.free_pkts, &packet_alloc[i].node);
 
-    cdctl_dev_init(&r_dev, &frame_free_head, csa.bus_mac,
-            csa.bus_baud_low, csa.bus_baud_high,
-            &r_spi, &r_rst_n);//, &r_int_n);
+    cdctl_dev_init(&r_dev, &frame_free_head, csa.bus_mac, 115200, 115200, &r_spi, &r_rst_n);
 
     dft_ns.intfs[0].dev = &r_dev.cd_dev;
     dft_ns.intfs[0].net = csa.bus_net;
@@ -103,3 +101,4 @@ void app_main(void)
         debug_flush();
     }
 }
+

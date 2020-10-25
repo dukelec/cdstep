@@ -80,7 +80,7 @@ sock_raw = CDNetSocket(('', 0xa))
 def dbg_echo():
     while True:
         rx = sock_dbg.recvfrom()
-        print('\x1b[0;37m  ' + re.sub(br'[^\x20-\x7e]',br'.', rx[0][5:-1]).decode() + '\x1b[0m')
+        print('\x1b[0;37m  ' + re.sub(br'[^\x20-\x7e]',br'.', rx[0][0:-1]).decode() + '\x1b[0m')
         #print('\x1b[0;37m  ' + re.sub(br'[^\x20-\x7e]',br'.', rx[0]).decode() + '\x1b[0m')
 
 _thread.start_new_thread(dbg_echo, ())
