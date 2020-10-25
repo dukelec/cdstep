@@ -124,7 +124,6 @@ void app_main(void)
         cdn_routine(&dft_ns); // handle cdnet
         common_service_routine();
         raw_dbg_routine();
-        app_motor();
         debug_flush();
     }
 }
@@ -138,7 +137,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         limit_det_isr();
     }
 }
-
 
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
 {

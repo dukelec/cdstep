@@ -36,7 +36,6 @@ typedef struct {
     uint16_t        size;
 } regr_t; // reg range
 
-
 typedef struct {
     uint16_t        magic_code; // 0xcdcd
     uint16_t        conf_ver;
@@ -45,7 +44,7 @@ typedef struct {
     bool            _reserved;  // keep_in_bl for bl
     bool            save_conf;
 
-    //uint8_t       bus_mode; // a, bs, trad
+    //uint8_t       bus_mode;
     uint8_t         bus_net;
     uint8_t         bus_mac;
     uint32_t        bus_baud_low;
@@ -61,7 +60,7 @@ typedef struct {
     regr_t          qxchg_ro[10];
 
     //uint8_t       dbg_str_msk;
-    //uint16_t      dbg_str_skip;   // for period string debug
+    //uint16_t      dbg_str_skip;    // for period print debug
 
     cdn_sockaddr_t  dbg_raw_dst;
     uint8_t         dbg_raw_msk;
@@ -86,9 +85,25 @@ typedef struct {
 
 } csa_t; // config status area
 
+
+typedef uint8_t (*hook_func_t)(uint16_t sub_offset, uint8_t len, uint8_t *dat);
+
+typedef struct {
+    regr_t          range;
+    hook_func_t     before;
+    hook_func_t     after;
+} csa_hook_t;
+
+
 extern csa_t csa;
-extern regr_t regr_wa[]; // writable list
-extern int regr_wa_num;
+
+extern regr_t csa_w_allow[]; // writable list
+extern int csa_w_allow_num;
+
+extern csa_hook_t csa_w_hook[];
+extern int csa_w_hook_num;
+extern csa_hook_t csa_r_hook[];
+extern int csa_r_hook_num;
 
 extern list_head_t frame_free_head;
 extern cdn_ns_t dft_ns;
@@ -103,7 +118,7 @@ void common_service_routine(void);
 
 void set_led_state(led_state_t state);
 
-void app_motor(void);
+uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
 void app_motor_init(void);
 void raw_dbg(int idx);
 void raw_dbg_init(void);

@@ -9,11 +9,22 @@
 
 #include "app_main.h"
 
-regr_t regr_wa[] = {
+regr_t csa_w_allow[] = {
         { .offset = offsetof(csa_t, magic_code), .size = offsetof(csa_t, cur_pos) - offsetof(csa_t, magic_code) }
 };
 
-int regr_wa_num = sizeof(regr_wa) / sizeof(regr_t);
+csa_hook_t csa_w_hook[] = {
+        {
+            .range = { .offset = offsetof(csa_t, tc_pos), .size = offsetof(csa_t, cur_pos) - offsetof(csa_t, tc_pos) },
+            .after = motor_w_hook
+        }
+};
+
+csa_hook_t csa_r_hook[] = {};
+
+int csa_w_allow_num = sizeof(csa_w_allow) / sizeof(regr_t);
+int csa_w_hook_num = sizeof(csa_w_hook) / sizeof(csa_hook_t);
+int csa_r_hook_num = sizeof(csa_r_hook) / sizeof(csa_hook_t);
 
 
 csa_t csa = {

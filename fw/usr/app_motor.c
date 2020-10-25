@@ -23,6 +23,29 @@ static gpio_t drv_dir = { .group = DRV_DIR_GPIO_Port, .num = DRV_DIR_Pin };
 gpio_t limit_det = { .group = LIMIT_DET_GPIO_Port, .num = LIMIT_DET_Pin };
 
 
+uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
+{
+    gpio_set_value(&drv_en, csa.state);
+
+    if (csa.state && csa.tc_state == 2)
+        csa.tc_state = 1;
+
+    if (csa.state && !csa.tc_state && csa.tc_pos != csa.cur_pos) {
+        d_debug("run motor ...\n");
+
+        csa.tc_vc = sign(csa.tc_pos - csa.cur_pos) * (float)csa.tc_speed_min;
+        int tim_val = abs(lroundf(1000000.0f / csa.tc_vc));
+
+        gpio_set_value(&drv_dir, csa.tc_pos >= csa.cur_pos); // 0: -, 1: +
+        csa.tc_state = 1;
+
+        __HAL_TIM_SET_AUTORELOAD(&htim1, tim_val);
+        __HAL_TIM_ENABLE(&htim1);
+    }
+    return 0;
+}
+
+
 void app_motor_init(void)
 {
     //HAL_NVIC_EnableIRQ(EXTI1_IRQn);
@@ -42,23 +65,6 @@ void app_motor_init(void)
     gpio_set_value(&drv_en, csa.state);
 }
 
-void app_motor(void)
-{
-    gpio_set_value(&drv_en, csa.state);
-
-    if (csa.state && !csa.tc_state && csa.tc_pos != csa.cur_pos) {
-        d_debug("run motor ...\n");
-
-        csa.tc_vc = sign(csa.tc_pos - csa.cur_pos) * (float)csa.tc_speed_min;
-        int tim_val = abs(lroundf(1000000.0f / csa.tc_vc));
-
-        gpio_set_value(&drv_dir, csa.tc_pos >= csa.cur_pos); // 0: -, 1: +
-        csa.tc_state = 1;
-
-        __HAL_TIM_SET_AUTORELOAD(&htim1, tim_val);
-        __HAL_TIM_ENABLE(&htim1);
-    }
-}
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
