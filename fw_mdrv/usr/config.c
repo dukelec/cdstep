@@ -10,12 +10,12 @@
 #include "app_main.h"
 
 regr_t csa_w_allow[] = {
-        { .offset = offsetof(csa_t, magic_code), .size = offsetof(csa_t, cur_pos) - offsetof(csa_t, magic_code) }
+        { .offset = offsetof(csa_t, magic_code), .size = offsetof(csa_t, tc_state) - offsetof(csa_t, magic_code) }
 };
 
 csa_hook_t csa_w_hook[] = {
         {
-            .range = { .offset = offsetof(csa_t, tc_pos), .size = offsetof(csa_t, cur_pos) - offsetof(csa_t, tc_pos) },
+            .range = { .offset = offsetof(csa_t, tc_pos), .size = offsetof(csa_t, tc_state) - offsetof(csa_t, tc_pos) },
             .after = motor_w_hook
         }
 };
@@ -116,53 +116,72 @@ int save_conf(void)
 }
 
 
-#define CSA_SHOW(_x) \
-        d_debug("   R_" #_x " = 0x%04x # len: %d\n", offsetof(csa_t, _x), sizeof(csa._x));
+#define t_name(expr)  \
+        (_Generic((expr), \
+                int8_t: "int8_t", uint8_t: "uint8_t", \
+                int16_t: "int16_t", uint16_t: "uint16_t", \
+                int32_t: "int32_t", uint32_t: "uint32_t", \
+                int: "int32_t", \
+                bool: "bool", \
+                float: "float", \
+                uint8_t *: "uint8_t *", \
+                regr_t *: "regr_t *", \
+                void *: "void *", \
+                default: "--"))
 
-#define CSA_SHOW_SUB(_x, _y_t, _y) \
-        d_debug("   R_" #_x "_" #_y " = 0x%04x # len: %d\n", offsetof(csa_t, _x) + offsetof(_y_t, _y), sizeof(csa._x._y));
+
+#define CSA_SHOW(_x, _desc) \
+        d_debug("   R_" #_x " = 0x%04x # len: %d, %s | %s\n", \
+                offsetof(csa_t, _x), sizeof(csa._x), t_name(csa._x), _desc);
+
+#define CSA_SHOW_SUB(_x, _y_t, _y, _desc) \
+        d_debug("   R_" #_x "_" #_y " = 0x%04x # len: %d, %s | %s\n", \
+                offsetof(csa_t, _x) + offsetof(_y_t, _y), sizeof(csa._x._y), t_name(csa._x._y), _desc);
 
 void csa_list_show(void)
 {
-    d_debug("csa_list_show:\n\n");
-
-    CSA_SHOW(conf_ver);
-    CSA_SHOW(conf_from);
-    CSA_SHOW(do_reboot);
-    CSA_SHOW(save_conf);
+    d_debug("csa_list_show:\n");
     d_debug("\n");
 
-    CSA_SHOW(bus_mac);
-    CSA_SHOW(bus_baud_low);
-    CSA_SHOW(bus_baud_high);
-    CSA_SHOW(dbg_en);
-    CSA_SHOW_SUB(dbg_dst, cdn_sockaddr_t, addr);
-    CSA_SHOW_SUB(dbg_dst, cdn_sockaddr_t, port);
+    CSA_SHOW(conf_ver, "Magic Code: 0xcdcd");
+    CSA_SHOW(conf_from, "0: default config, 1: load from flash");
+    CSA_SHOW(do_reboot, "Write 1 to reboot");
+    CSA_SHOW(save_conf, "Write 1 to save current config to flash");
     d_debug("\n");
 
-    CSA_SHOW(qxchg_set);
-    CSA_SHOW(qxchg_ret);
-    CSA_SHOW(qxchg_ro);
+    CSA_SHOW(bus_mac, "RS-485 port id, range: 0~254");
+    CSA_SHOW(bus_baud_low, "RS-485 baud rate for first byte");
+    CSA_SHOW(bus_baud_high, "RS-485 baud rate for follow bytes");
+    CSA_SHOW(dbg_en, "1: Report debug message to host, 0: do not report");
+    CSA_SHOW_SUB(dbg_dst, cdn_sockaddr_t, addr, "Send debug message to this address");
+    CSA_SHOW_SUB(dbg_dst, cdn_sockaddr_t, port, "Send debug message to this port");
+    d_debug("\n");
+
+    CSA_SHOW(qxchg_set, "Config the write data components for quick-exchange channel");
+    CSA_SHOW(qxchg_ret, "Config the return data components for quick-exchange channel");
+    CSA_SHOW(qxchg_ro, "Config the return data components for the read only quick-exchange channel");
     d_info("\n");
 
-    CSA_SHOW_SUB(dbg_raw_dst, cdn_sockaddr_t, addr);
-    CSA_SHOW_SUB(dbg_raw_dst, cdn_sockaddr_t, port);
-    CSA_SHOW(dbg_raw_msk);
-    CSA_SHOW(dbg_raw_th);
-    CSA_SHOW(dbg_raw_skip);
-    CSA_SHOW(dbg_raw);
+    CSA_SHOW_SUB(dbg_raw_dst, cdn_sockaddr_t, addr, "Send raw debug data to this address");
+    CSA_SHOW_SUB(dbg_raw_dst, cdn_sockaddr_t, port, "Send raw debug data to this port");
+    CSA_SHOW(dbg_raw_msk, "Config which raw debug data to be send");
+    CSA_SHOW(dbg_raw_th, "Config raw debug data package size");
+    CSA_SHOW(dbg_raw_skip, "Reduce raw debug data");
+    CSA_SHOW(dbg_raw, "Config raw debug data components");
     d_info("\n");
 
-    CSA_SHOW(tc_pos);
-    CSA_SHOW(tc_speed);
-    CSA_SHOW(tc_accel);
-    CSA_SHOW(tc_speed_min);
+    CSA_SHOW(tc_pos, "Set target position");
+    CSA_SHOW(tc_speed, "Set target speed");
+    CSA_SHOW(tc_accel, "Set target accel");
+    CSA_SHOW(tc_speed_min, "Set the minimum speed");
     d_debug("\n");
 
-    CSA_SHOW(state);
-    CSA_SHOW(tc_state);
-    CSA_SHOW(cur_pos);
-    CSA_SHOW(tc_vc);
-    CSA_SHOW(tc_ac);
+    CSA_SHOW(state, "0: disable drive, 1: enable drive");
+    d_debug("\n");
+    d_debug("   #--------------- Follows are not writable: -------------------\n");
+    CSA_SHOW(tc_state, "t_curve: 0: stop, 1: run, 2: tailer");
+    CSA_SHOW(cur_pos, "Motor current position");
+    CSA_SHOW(tc_vc, "Motor current speed");
+    CSA_SHOW(tc_ac, "Motor current accel");
     d_debug("\n");
 }
