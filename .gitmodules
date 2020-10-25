@@ -1,3 +1,16 @@
-[submodule "cdnet"]
-	path = fw/cdnet
+[submodule "cdnet_bl"]
+	path = fw_bl/cdnet
 	url = ../cdnet
+
+[submodule "cdnet_mdrv"]
+	path = fw_mdrv/cdnet
+	url = ../cdnet
+
+[submodule "pycdnet"]
+	path = tools/pycdnet
+	url = ../pycdnet
+
+[submodule "cdbus_tools"]
+	path = tools/cdbus_tools
+	url = ../cdbus_tools
+
