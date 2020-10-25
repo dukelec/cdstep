@@ -77,6 +77,7 @@ cdnet/dev/cdctl_it.c \
 cdnet/utils/cd_list.c \
 cdnet/utils/rbtree.c \
 cdnet/utils/cd_debug.c \
+cdnet/utils/modbus_crc.c \
 cdnet/utils/hex_dump.c \
 usr/config.c \
 usr/common_services.c \

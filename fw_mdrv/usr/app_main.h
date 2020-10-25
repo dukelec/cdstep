@@ -18,7 +18,7 @@
 #define P_2F(x) (int)(x), abs(((x)-(int)(x))*100)  // "%d.%.2d"
 #define P_3F(x) (int)(x), abs(((x)-(int)(x))*1000) // "%d.%.3d"
 
-#define APP_CONF_ADDR       0x0801F800 // last page
+#define APP_CONF_ADDR       0x0800FC00 // last 1k page
 #define APP_CONF_VER        0x0001
 
 #define FRAME_MAX           10

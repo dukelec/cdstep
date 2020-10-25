@@ -46,13 +46,18 @@ static void device_init(void)
 }
 
 
-#define APP_ADDR 0x08010000 // offset: 64KB
+#define APP_ADDR 0x08006800 // offset: 24KB
 
 static void jump_to_app(void)
 {
     uint32_t stack = *(uint32_t*)APP_ADDR;
     uint32_t func = *(uint32_t*)(APP_ADDR + 4);
+
+    gpio_set_value(&led_b, 1);
     printf("jump to app...\n");
+
+    // NOTE: change app's SCB->VTOR in app's system_stm32fxxx.c
+    HAL_NVIC_DisableIRQ(SysTick_IRQn);
     __set_MSP(stack); // init stack pointer
     ((void(*)()) func)();
 }
@@ -67,7 +72,6 @@ void app_main(void)
     common_service_init();
     printf("bl conf: %s\n", csa.conf_from ? "load from flash" : "use default");
     d_info("bl conf: %s\n", csa.conf_from ? "load from flash" : "use default");
-
     gpio_set_value(&led_b, 0);
 
     uint32_t t_last = get_systick();
