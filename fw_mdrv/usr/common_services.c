@@ -139,7 +139,7 @@ static void p8_service_routine(void)
 }
 
 
-static uint8_t csa_r_hock(bool rw, uint16_t offset, uint8_t len, uint8_t *dat)
+static uint8_t csa_r_hook_exec(bool rw, uint16_t offset, uint8_t len, uint8_t *dat)
 {
     uint8_t ret = 0;
     for (int i = 0; !ret && i < csa_r_hook_num; i++) {
@@ -155,7 +155,7 @@ static uint8_t csa_r_hock(bool rw, uint16_t offset, uint8_t len, uint8_t *dat)
     return ret;
 }
 
-static uint8_t csa_w_hock(bool rw, uint16_t offset, uint8_t len, uint8_t *dat)
+static uint8_t csa_w_hook_exec(bool rw, uint16_t offset, uint8_t len, uint8_t *dat)
 {
     uint8_t ret = 0;
     for (int i = 0; i < csa_w_hook_num; i++) {
@@ -187,10 +187,10 @@ static void p5_service_routine(void)
         uint16_t offset = *(uint16_t *)(pkt->dat + 1);
         uint8_t len = min(pkt->dat[3], CDN_MAX_DAT - 1);
 
-        ret_val = csa_r_hock(false, offset, len, NULL);
+        ret_val = csa_r_hook_exec(false, offset, len, NULL);
         if (!ret_val) {
             memcpy(pkt->dat + 1, ((void *) &csa) + offset, len);
-            ret_val = csa_r_hock(true, offset, len, NULL);
+            ret_val = csa_r_hook_exec(true, offset, len, NULL);
         }
 
         d_debug("csa read: %04x %d\n", offset, len);
@@ -204,7 +204,7 @@ static void p5_service_routine(void)
         uint32_t flags;
 
         local_irq_save(flags);
-        ret_val = csa_w_hock(false, offset, len, src_dat);
+        ret_val = csa_w_hook_exec(false, offset, len, src_dat);
         if (!ret_val) {
             for (int i = 0; i < csa_w_allow_num; i++) {
                 regr_t *regr = csa_w_allow + i;
@@ -223,7 +223,7 @@ static void p5_service_routine(void)
                 //        *(src_dat + (start - offset)));
                 memcpy(((void *) &csa) + start, src_dat + (start - offset), end - start);
             }
-            ret_val = csa_w_hock(true, offset, len, src_dat);
+            ret_val = csa_w_hook_exec(true, offset, len, src_dat);
         }
         local_irq_restore(flags);
 
@@ -265,10 +265,10 @@ static void p6_service_routine(void)
             if (!lim_size)
                 break;
 
-            ret_val = csa_w_hock(false, regr->offset, lim_size, src_dat);
+            ret_val = csa_w_hook_exec(false, regr->offset, lim_size, src_dat);
             if (!ret_val) {
                 memcpy(((void *) &csa) + regr->offset, src_dat, lim_size);
-                ret_val = csa_w_hock(true, regr->offset, lim_size, src_dat);
+                ret_val = csa_w_hook_exec(true, regr->offset, lim_size, src_dat);
             }
 
             src_dat += lim_size;
@@ -278,10 +278,10 @@ static void p6_service_routine(void)
             regr_t *regr = csa.qxchg_ret + i;
             if (!regr->size)
                 break;
-            ret_val = csa_r_hock(false, regr->offset, regr->size, NULL);
+            ret_val = csa_r_hook_exec(false, regr->offset, regr->size, NULL);
             if (!ret_val) {
                 memcpy(dst_dat, ((void *) &csa) + regr->offset, regr->size);
-                ret_val = csa_r_hock(true, regr->offset, regr->size, NULL);
+                ret_val = csa_r_hook_exec(true, regr->offset, regr->size, NULL);
             }
             dst_dat += regr->size;
         }
@@ -302,10 +302,10 @@ static void p6_service_routine(void)
                 regr_t *regr = csa.qxchg_ro + i;
                 if (!regr->size)
                     break;
-                ret_val = csa_r_hock(false, regr->offset, regr->size, NULL);
+                ret_val = csa_r_hook_exec(false, regr->offset, regr->size, NULL);
                 if (!ret_val) {
                     memcpy(dst_dat, ((void *) &csa) + regr->offset, regr->size);
-                    ret_val = csa_r_hock(true, regr->offset, regr->size, NULL);
+                    ret_val = csa_r_hook_exec(true, regr->offset, regr->size, NULL);
                 }
                 dst_dat += regr->size;
             }
