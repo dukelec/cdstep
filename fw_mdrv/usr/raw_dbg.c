@@ -9,7 +9,7 @@
 
 #include "app_main.h"
 
-static cdn_sock_t sock_raw_dbg = { .port = 0xa, .ns = &dft_ns }; // raw debug
+static cdn_sock_t sock_raw_dbg = { .port = 0xa, .ns = &dft_ns, .tx_only = true }; // raw debug
 static list_head_t raw_pend = { 0 };
 
 
@@ -46,6 +46,7 @@ void raw_dbg(int idx)
 
         } else {
             pkt_raw[idx] = cdn_pkt_get(&dft_ns.free_pkts);
+            cdn_init_pkt(pkt_raw[idx]);
             pkt_raw[idx]->dst = csa.dbg_raw_dst;
             pkt_raw[idx]->dat[0] = 0x40 | idx;
             //*(uint32_t *)(pkt_raw[idx]->dat + 1) = csa.loop_cnt;

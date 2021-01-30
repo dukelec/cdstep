@@ -16,7 +16,7 @@ csa_t csa = {
         .bus_mac = 254,
         .bus_baud_low = 115200,
         .bus_baud_high = 115200,
-        .dbg_en = true,
+        .dbg_en = false,
         .dbg_dst = { .addr = {0x80, 0x00, 0x00}, .port = 9 },
 };
 
@@ -27,7 +27,7 @@ void load_conf(void)
     memcpy(&app_tmp, (void *)APP_CONF_ADDR, sizeof(csa_t));
     memset(&app_tmp.conf_from, 0, 4);
 
-    if (app_tmp.magic_code == 0xcdcd && app_tmp.conf_ver == APP_CONF_VER) {
+    if (app_tmp.magic_code == 0xcdcd && (app_tmp.conf_ver & 0xff00) == (APP_CONF_VER & 0xff00)) {
         memcpy(&csa, &app_tmp, sizeof(csa_t));
         csa.conf_from = 1;
     }

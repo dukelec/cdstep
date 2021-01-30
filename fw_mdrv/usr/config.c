@@ -27,7 +27,7 @@ int csa_w_hook_num = sizeof(csa_w_hook) / sizeof(csa_hook_t);
 int csa_r_hook_num = sizeof(csa_r_hook) / sizeof(csa_hook_t);
 
 
-csa_t csa = {
+const csa_t csa_dft = {
         .magic_code = 0xcdcd,
         .conf_ver = APP_CONF_VER,
 
@@ -64,6 +64,8 @@ csa_t csa = {
         .tc_speed_min = 100
 };
 
+csa_t csa;
+
 
 void load_conf(void)
 {
@@ -74,6 +76,8 @@ void load_conf(void)
     if (app_tmp.magic_code == 0xcdcd && app_tmp.conf_ver == APP_CONF_VER) {
         memcpy(&csa, &app_tmp, offsetof(csa_t, state));
         csa.conf_from = 1;
+    } else {
+        csa = csa_dft;
     }
 }
 
@@ -141,13 +145,13 @@ int save_conf(void)
 void csa_list_show(void)
 {
     d_debug("csa_list_show:\n");
-    d_debug("\n");
+    d_debug("\n"); debug_flush(true);
 
     CSA_SHOW(conf_ver, "Magic Code: 0xcdcd");
     CSA_SHOW(conf_from, "0: default config, 1: load from flash");
     CSA_SHOW(do_reboot, "Write 1 to reboot");
     CSA_SHOW(save_conf, "Write 1 to save current config to flash");
-    d_debug("\n");
+    d_debug("\n"); debug_flush(true);
 
     CSA_SHOW(bus_mac, "RS-485 port id, range: 0~254");
     CSA_SHOW(bus_baud_low, "RS-485 baud rate for first byte");
@@ -155,12 +159,12 @@ void csa_list_show(void)
     CSA_SHOW(dbg_en, "1: Report debug message to host, 0: do not report");
     CSA_SHOW_SUB(dbg_dst, cdn_sockaddr_t, addr, "Send debug message to this address");
     CSA_SHOW_SUB(dbg_dst, cdn_sockaddr_t, port, "Send debug message to this port");
-    d_debug("\n");
+    d_debug("\n"); debug_flush(true);
 
     CSA_SHOW(qxchg_set, "Config the write data components for quick-exchange channel");
     CSA_SHOW(qxchg_ret, "Config the return data components for quick-exchange channel");
     CSA_SHOW(qxchg_ro, "Config the return data components for the read only quick-exchange channel");
-    d_info("\n");
+    d_info("\n"); debug_flush(true);
 
     CSA_SHOW_SUB(dbg_raw_dst, cdn_sockaddr_t, addr, "Send raw debug data to this address");
     CSA_SHOW_SUB(dbg_raw_dst, cdn_sockaddr_t, port, "Send raw debug data to this port");
@@ -168,20 +172,20 @@ void csa_list_show(void)
     CSA_SHOW(dbg_raw_th, "Config raw debug data package size");
     CSA_SHOW(dbg_raw_skip, "Reduce raw debug data");
     CSA_SHOW(dbg_raw, "Config raw debug data components");
-    d_info("\n");
+    d_info("\n"); debug_flush(true);
 
     CSA_SHOW(tc_pos, "Set target position");
     CSA_SHOW(tc_speed, "Set target speed");
     CSA_SHOW(tc_accel, "Set target accel");
     CSA_SHOW(tc_speed_min, "Set the minimum speed");
-    d_debug("\n");
+    d_debug("\n"); debug_flush(true);
 
     CSA_SHOW(state, "0: disable drive, 1: enable drive");
-    d_debug("\n");
+    d_debug("\n"); debug_flush(true);
     d_debug("   #--------------- Follows are not writable: -------------------\n");
     CSA_SHOW(tc_state, "t_curve: 0: stop, 1: run, 2: tailer");
     CSA_SHOW(cur_pos, "Motor current position");
     CSA_SHOW(tc_vc, "Motor current speed");
     CSA_SHOW(tc_ac, "Motor current accel");
-    d_debug("\n");
+    d_debug("\n"); debug_flush(true);
 }

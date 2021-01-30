@@ -22,6 +22,10 @@
 #define CDUART_IRQ_SAFE
 #define CDUART_IDLE_TIME    (500000 / SYSTICK_US_DIV) // 500 ms
 
+#define CDN_SEQ
+//#define CDN_L0_C
+//#define CDN_L2
+
 #include "main.h"
 #include "debug_config.h"
 

@@ -63,8 +63,9 @@ MDRV 一共有 4 個端口接收指令，分別是：
 讀寫參數表的子命令爲：
 
 ```
-read:  0x00, offset_16, len_8   | return [0x80, data]
-write: 0x20, offset_16 + [data] | return [0x80] on success
+read:       0x00, offset_16, len_8   | return [0x80, data]
+read_dft:   0x01, offset_16, len_8   | return [0x80, data]
+write:      0x20, offset_16 + [data] | return [0x80] on success
 ```
 
 譬如設置電機鎖舵並進入位置模式。電機狀態 `state` 值爲 0 不鎖舵，爲 1 鎖舵。
@@ -192,12 +193,4 @@ d1 是開啓裸數據調試功能，d0 是關閉。
 
 用鼠標右鍵拖動可以很方便的放大細節：
 <img src="doc/tool2.png">
-
-
-## TODO
-
-可以增加一個端口號，從廣播包中取出自己節點的數據，然後進行處理。
-另外是，實現一個推後執行命令的功能，方便主機先同步數據，再通知所有節點同步執行命令。
-這兩個功能可以放在一個端口號中，用不同的子命令來分別實現。
-這兩個功能實現很簡單，代碼量也非常少。
 

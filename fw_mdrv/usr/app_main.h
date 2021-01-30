@@ -55,6 +55,7 @@ typedef struct {
     bool            dbg_en;
     cdn_sockaddr_t  dbg_dst;
 
+    regr_t          qxchg_mcast;     // for multicast
     regr_t          qxchg_set[10];
     regr_t          qxchg_ret[10];
     regr_t          qxchg_ro[10];
@@ -96,6 +97,7 @@ typedef struct {
 
 
 extern csa_t csa;
+extern const csa_t csa_dft;
 
 extern regr_t csa_w_allow[]; // writable list
 extern int csa_w_allow_num;

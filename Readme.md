@@ -67,8 +67,9 @@ With the definition of writable area, users can write data in a whole block very
 The subcommands for reading and writing the parameter table are:
 
 ```
-read:  0x00, offset_16, len_8   | return [0x80, data]
-write: 0x20, offset_16 + [data] | return [0x80] on success
+read:       0x00, offset_16, len_8   | return [0x80, data]
+read_dft:   0x01, offset_16, len_8   | return [0x80, data]
+write:      0x20, offset_16 + [data] | return [0x80] on success
 ```
 
 For example, set the motor to be powered on and locked. The value of motor state `state` is: 0 power-down, 1 power-on lock.
@@ -197,12 +198,4 @@ For example, a robot arm in motion is very dangerous with traditional debugging 
 
 Drag with the right mouse button to zoom in details conveniently:
 <img src="doc/tool2.png">
-
-
-## TODO
-
-We can add a port number, take out the data of our node from the broadcast packet, and then process it.
-In addition, implement a post-execution command function, which is convenient for the host to synchronize data first, and then notify all nodes to execute the command synchronously.
-These two functions can be placed in a single port number and implemented with different subcommands.
-The implementation of these two functions is very simple, and the amount of code is very small.
 
