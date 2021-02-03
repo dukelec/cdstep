@@ -56,9 +56,9 @@ typedef struct {
     cdn_sockaddr_t  dbg_dst;
 
     regr_t          qxchg_mcast;     // for multicast
-    regr_t          qxchg_set[10];
-    regr_t          qxchg_ret[10];
-    regr_t          qxchg_ro[10];
+    regr_t          qxchg_set[5];
+    regr_t          qxchg_ret[5];
+    regr_t          qxchg_ro[5];
 
     //uint8_t       dbg_str_msk;
     //uint16_t      dbg_str_skip;    // for period print debug
@@ -66,8 +66,7 @@ typedef struct {
     cdn_sockaddr_t  dbg_raw_dst;
     uint8_t         dbg_raw_msk;
     uint8_t         dbg_raw_th;      // len threshold (+ 1 samples < pkt size)
-    uint8_t         dbg_raw_skip[2]; // take samples every few times
-    regr_t          dbg_raw[2][10];
+    regr_t          dbg_raw[2][6];
 
     int32_t         tc_pos;
     uint32_t        tc_speed;
@@ -83,6 +82,7 @@ typedef struct {
     float           tc_ac;
 
     uint32_t        time_cnt;
+    char            string_test[10]; // for cdbus_gui tool test
 
 } csa_t; // config status area
 
