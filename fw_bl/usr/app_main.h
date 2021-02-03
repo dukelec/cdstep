@@ -22,7 +22,7 @@
 #define APP_CONF_VER        0x0001
 
 #define FRAME_MAX           10
-#define PACKET_MAX          10
+#define PACKET_MAX          30
 
 
 typedef struct {
@@ -47,6 +47,8 @@ typedef struct {
 } csa_t; // config status area
 
 extern csa_t csa;
+extern const csa_t csa_dft;
+
 extern cdn_ns_t dft_ns;
 
 void app_main(void);

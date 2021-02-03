@@ -9,7 +9,7 @@
 
 #include "app_main.h"
 
-csa_t csa = {
+const csa_t csa_dft = {
         .magic_code = 0xcdcd,
         .conf_ver = APP_CONF_VER,
 
@@ -19,6 +19,8 @@ csa_t csa = {
         .dbg_en = false,
         .dbg_dst = { .addr = {0x80, 0x00, 0x00}, .port = 9 },
 };
+
+csa_t csa;
 
 
 void load_conf(void)
@@ -30,6 +32,7 @@ void load_conf(void)
     if (app_tmp.magic_code == 0xcdcd && (app_tmp.conf_ver & 0xff00) == (APP_CONF_VER & 0xff00)) {
         memcpy(&csa, &app_tmp, sizeof(csa_t));
         csa.conf_from = 1;
+    } else {
+        csa = csa_dft;
     }
 }
-

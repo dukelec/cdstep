@@ -22,7 +22,7 @@
 #define APP_CONF_VER        0x0001
 
 #define FRAME_MAX           10
-#define PACKET_MAX          10
+#define PACKET_MAX          30
 
 
 typedef enum {

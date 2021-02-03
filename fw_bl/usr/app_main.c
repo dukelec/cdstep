@@ -31,16 +31,15 @@ cdn_ns_t dft_ns = {0};          // CDNET
 
 static void device_init(void)
 {
+    cdn_init_ns(&dft_ns);
+
     for (int i = 0; i < FRAME_MAX; i++)
         list_put(&frame_free_head, &frame_alloc[i].node);
     for (int i = 0; i < PACKET_MAX; i++)
         list_put(&dft_ns.free_pkts, &packet_alloc[i].node);
 
     cdctl_dev_init(&r_dev, &frame_free_head, csa.bus_mac, 115200, 115200, &r_spi, &r_rst_n);
-
-    dft_ns.intfs[0].dev = &r_dev.cd_dev;
-    dft_ns.intfs[0].net = csa.bus_net;
-    dft_ns.intfs[0].mac = csa.bus_mac;
+    cdn_add_intf(&dft_ns, &r_dev.cd_dev, csa.bus_net, csa.bus_mac);
 }
 
 
@@ -98,7 +97,7 @@ void app_main(void)
         cdctl_routine(&r_dev);
         cdn_routine(&dft_ns); // handle cdnet
         common_service_routine();
-        debug_flush();
+        debug_flush(false);
     }
 }
 
