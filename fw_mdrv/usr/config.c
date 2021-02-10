@@ -32,9 +32,7 @@ const csa_t csa_dft = {
         .magic_code = 0xcdcd,
         .conf_ver = APP_CONF_VER,
 
-        .bus_mac = 254,
-        .bus_baud_low = 115200,
-        .bus_baud_high = 115200,
+        .bus_cfg = CDCTL_CFG_DFT(0xfe),
         .dbg_en = true,
         .dbg_dst = { .addr = {0x80, 0x00, 0x00}, .port = 9 },
 
@@ -156,9 +154,16 @@ void csa_list_show(void)
     CSA_SHOW(0, save_conf, "Write 1 to save current config to flash");
     d_debug("\n"); debug_flush(true);
 
-    CSA_SHOW(1, bus_mac, "RS-485 port id, range: 0~254");
-    CSA_SHOW(0, bus_baud_low, "RS-485 baud rate for first byte");
-    CSA_SHOW(0, bus_baud_high, "RS-485 baud rate for follow bytes");
+    CSA_SHOW_SUB(1, bus_cfg, cdctl_cfg_t, mac, "RS-485 port id, range: 0~254");
+    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, baud_l, "RS-485 baud rate for first byte");
+    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, baud_h, "RS-485 baud rate for follow bytes");
+    CSA_SHOW_SUB(1, bus_cfg, cdctl_cfg_t, filter, "Multicast address");
+    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, mode, "0: Arbitration, 1: Break Sync");
+    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, tx_permit_len, "Allow send wait time");
+    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, max_idle_len, "Max idle wait time for BS mode");
+    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, tx_pre_len, " Active TX_EN before TX");
+    d_debug("\n"); debug_flush(true);
+
     CSA_SHOW(0, dbg_en, "1: Report debug message to host, 0: do not report");
     CSA_SHOW_SUB(2, dbg_dst, cdn_sockaddr_t, addr, "Send debug message to this address");
     CSA_SHOW_SUB(1, dbg_dst, cdn_sockaddr_t, port, "Send debug message to this port");

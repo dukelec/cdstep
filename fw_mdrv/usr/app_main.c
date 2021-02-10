@@ -45,9 +45,8 @@ static void device_init(void)
     for (int i = 0; i < PACKET_MAX; i++)
         list_put(&dft_ns.free_pkts, &packet_alloc[i].node);
 
-    cdctl_dev_init(&r_dev, &frame_free_head, csa.bus_mac,
-            csa.bus_baud_low, csa.bus_baud_high, &r_spi, &r_rst_n, &r_int_n);
-    cdn_add_intf(&dft_ns, &r_dev.cd_dev, csa.bus_net, csa.bus_mac);
+    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi, &r_rst_n, &r_int_n);
+    cdn_add_intf(&dft_ns, &r_dev.cd_dev, csa.bus_net, csa.bus_cfg.mac);
 }
 
 void set_led_state(led_state_t state)

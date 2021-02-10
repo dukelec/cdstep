@@ -13,9 +13,7 @@ const csa_t csa_dft = {
         .magic_code = 0xcdcd,
         .conf_ver = APP_CONF_VER,
 
-        .bus_mac = 254,
-        .bus_baud_low = 115200,
-        .bus_baud_high = 115200,
+        .bus_cfg = CDCTL_CFG_DFT(0xfe),
         .dbg_en = false,
         .dbg_dst = { .addr = {0x80, 0x00, 0x00}, .port = 9 },
 };

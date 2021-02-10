@@ -116,7 +116,7 @@ static void p8_service_routine(void)
         d_debug("nvm write: %08x %d(%d), ret: %d\n", dst_dat, pkt->len - 5, cnt, ret);
         pkt->len = 1;
         pkt->dat[0] = ret == HAL_OK ? 0x80 : 0x81;
-
+#if 0
     } else if (pkt->len == 9 && pkt->dat[0] == 0x10) {
         uint32_t f_addr = *(uint32_t *)(pkt->dat + 1);
         uint32_t f_len = *(uint32_t *)(pkt->dat + 5);
@@ -126,7 +126,7 @@ static void p8_service_routine(void)
         *(uint16_t *)(pkt->dat + 1) = crc;
         pkt->dat[0] = 0x80;
         pkt->len = 3;
-
+#endif
     } else {
         list_put(&dft_ns.free_pkts, &pkt->node);
         d_warn("nvm: wrong cmd, len: %d\n", pkt->len);

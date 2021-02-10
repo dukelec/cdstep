@@ -38,8 +38,10 @@ static void device_init(void)
     for (int i = 0; i < PACKET_MAX; i++)
         list_put(&dft_ns.free_pkts, &packet_alloc[i].node);
 
-    cdctl_dev_init(&r_dev, &frame_free_head, csa.bus_mac, 115200, 115200, &r_spi, &r_rst_n);
-    cdn_add_intf(&dft_ns, &r_dev.cd_dev, csa.bus_net, csa.bus_mac);
+    cdctl_cfg_t cfg = csa.bus_cfg;
+    cfg.baud_l = cfg.baud_h = 115200;
+    cdctl_dev_init(&r_dev, &frame_free_head, &cfg, &r_spi, &r_rst_n);
+    cdn_add_intf(&dft_ns, &r_dev.cd_dev, csa.bus_net, csa.bus_cfg.mac);
 }
 
 
@@ -83,11 +85,11 @@ void app_main(void)
 
         if (!csa.keep_in_bl && !update_baud && get_systick() - boot_time > 1000000 / SYSTICK_US_DIV) {
             update_baud = true;
-            if (csa.bus_baud_low != 115200 || csa.bus_baud_high != 115200) {
-                cdctl_set_baud_rate(&r_dev, csa.bus_baud_low, csa.bus_baud_high);
+            if (csa.bus_cfg.baud_l != 115200 || csa.bus_cfg.baud_h != 115200) {
+                cdctl_set_baud_rate(&r_dev, csa.bus_cfg.baud_l, csa.bus_cfg.baud_h);
                 cdctl_flush(&r_dev);
-                printf("baud rate updated, %ld %ld\n", csa.bus_baud_low, csa.bus_baud_high);
-                d_info("baud rate updated, %ld %ld\n", csa.bus_baud_low, csa.bus_baud_high);
+                printf("baud rate updated, %ld %ld\n", csa.bus_cfg.baud_l, csa.bus_cfg.baud_h);
+                d_info("baud rate updated, %ld %ld\n", csa.bus_cfg.baud_l, csa.bus_cfg.baud_h);
             }
         }
 

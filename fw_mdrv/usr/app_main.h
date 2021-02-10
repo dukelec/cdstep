@@ -19,7 +19,7 @@
 #define P_3F(x) (int)(x), abs(((x)-(int)(x))*1000) // "%d.%.3d"
 
 #define APP_CONF_ADDR       0x0800FC00 // last 1k page
-#define APP_CONF_VER        0x0001
+#define APP_CONF_VER        0x0102
 
 #define FRAME_MAX           10
 #define PACKET_MAX          30
@@ -44,14 +44,8 @@ typedef struct {
     bool            _reserved;  // keep_in_bl for bl
     bool            save_conf;
 
-    //uint8_t       bus_mode;
     uint8_t         bus_net;
-    uint8_t         bus_mac;
-    uint32_t        bus_baud_low;
-    uint32_t        bus_baud_high;
-    //uint16_t      bus_tx_premit_len;
-    //uint16_t      bus_max_idle_len;
-
+    cdctl_cfg_t     bus_cfg;
     bool            dbg_en;
     cdn_sockaddr_t  dbg_dst;
 
