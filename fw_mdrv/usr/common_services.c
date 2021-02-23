@@ -274,7 +274,7 @@ static void p6_service_routine(void)
 
         local_irq_save(flags);
 
-        for (int i = 0; !ret_val && i < 10; i++) {
+        for (int i = 0; !ret_val && i < 5; i++) {
             regr_t *regr = csa.qxchg_set + i;
             if (!regr->size)
                 break;
@@ -291,7 +291,7 @@ static void p6_service_routine(void)
             src_dat += lim_size;
         }
 
-        for (int i = 0; !ret_val && i < 10; i++) {
+        for (int i = 0; !ret_val && i < 5; i++) {
             regr_t *regr = csa.qxchg_ret + i;
             if (!regr->size)
                 break;
@@ -315,7 +315,7 @@ static void p6_service_routine(void)
 
             local_irq_save(flags);
 
-            for (int i = 0; !ret_val && i < 10; i++) {
+            for (int i = 0; !ret_val && i < 5; i++) {
                 regr_t *regr = csa.qxchg_ro + i;
                 if (!regr->size)
                     break;
