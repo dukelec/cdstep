@@ -25,8 +25,8 @@ static void get_uid(char *buf)
 
     for (i = 0; i < 12; i++) {
         uint8_t val = *((char *)UID_BASE + i);
-        buf[i * 2 + 0] = tlb[val & 0xf];
-        buf[i * 2 + 1] = tlb[val >> 4];
+        buf[i * 2 + 0] = tlb[val >> 4];
+        buf[i * 2 + 1] = tlb[val & 0xf];
     }
     buf[24] = '\0';
 }
