@@ -73,6 +73,7 @@ void load_conf(void)
     csa_t app_tmp;
     memcpy(&app_tmp, (void *)APP_CONF_ADDR, offsetof(csa_t, state));
     memset(&app_tmp.conf_from, 0, 4);
+    app_tmp.tc_pos = 0;
 
     if (app_tmp.magic_code == 0xcdcd && app_tmp.conf_ver == APP_CONF_VER) {
         memcpy(&csa, &app_tmp, offsetof(csa_t, state));

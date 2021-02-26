@@ -101,6 +101,23 @@ static void stack_check(void)
     }
 }
 
+#if 0
+static void dump_hw_status(void)
+{
+    static int t_l = 0;
+    if (get_systick() - t_l > 8000) {
+        t_l = get_systick();
+
+        d_debug("ctl: state %d, t_len %d, r_len %d, irq %d\n",
+                r_dev.state, r_dev.tx_head.len, r_dev.rx_head.len,
+                !gpio_get_value(r_dev.int_n));
+        d_debug("  r_cnt %d (lost %d, err %d, no-free %d), t_cnt %d (cd %d, err %d)\n",
+                r_dev.rx_cnt, r_dev.rx_lost_cnt, r_dev.rx_error_cnt,
+                r_dev.rx_no_free_node_cnt,
+                r_dev.tx_cnt, r_dev.tx_cd_cnt, r_dev.tx_error_cnt);
+    }
+}
+#endif
 
 void app_main(void)
 {
@@ -119,6 +136,7 @@ void app_main(void)
 
     while (true) {
         stack_check();
+        //dump_hw_status();
         cdn_routine(&dft_ns); // handle cdnet
         common_service_routine();
         raw_dbg_routine();
@@ -152,5 +170,5 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 }
 void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 {
-    printf("spi error...\n");
+    printf("spi error... [%08lx]\n", hspi->ErrorCode);
 }
