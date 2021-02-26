@@ -11,7 +11,7 @@
 #include "app_main.h"
 
 extern TIM_HandleTypeDef htim1;
-extern TIM_HandleTypeDef htim2;
+extern DAC_HandleTypeDef hdac1;
 
 static gpio_t drv_en = { .group = DRV_EN_GPIO_Port, .num = DRV_EN_Pin };
 static gpio_t drv_md1 = { .group = DRV_MD1_GPIO_Port, .num = DRV_MD1_Pin };
@@ -20,7 +20,7 @@ static gpio_t drv_md3 = { .group = DRV_MD3_GPIO_Port, .num = DRV_MD3_Pin };
 static gpio_t drv_step = { .group = DRV_STEP_GPIO_Port, .num = DRV_STEP_Pin };
 static gpio_t drv_dir = { .group = DRV_DIR_GPIO_Port, .num = DRV_DIR_Pin };
 
-gpio_t limit_det = { .group = LIMIT_DET_GPIO_Port, .num = LIMIT_DET_Pin };
+//gpio_t limit_det = { .group = LIMIT_DET_GPIO_Port, .num = LIMIT_DET_Pin };
 
 
 uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
@@ -49,11 +49,13 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 void app_motor_init(void)
 {
     //HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-    HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
+    //HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
     set_led_state(LED_POWERON);
 
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 350);
-    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+    //__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 350);
+    //HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+    HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 1.0f * 0x0fff / 3.3f);
+    HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
 
     __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
     __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);

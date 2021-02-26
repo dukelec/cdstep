@@ -59,6 +59,7 @@
 /* External variables --------------------------------------------------------*/
 extern DMA_HandleTypeDef hdma_spi1_rx;
 extern DMA_HandleTypeDef hdma_spi1_tx;
+extern TIM_HandleTypeDef htim1;
 /* USER CODE BEGIN EV */
 
 /* USER CODE END EV */
@@ -185,6 +186,20 @@ void DMA1_Channel2_3_IRQHandler(void)
   /* USER CODE BEGIN DMA1_Channel2_3_IRQn 1 */
 
   /* USER CODE END DMA1_Channel2_3_IRQn 1 */
+}
+
+/**
+  * @brief This function handles TIM1 break, update, trigger and commutation interrupts.
+  */
+void TIM1_BRK_UP_TRG_COM_IRQHandler(void)
+{
+  /* USER CODE BEGIN TIM1_BRK_UP_TRG_COM_IRQn 0 */
+
+  /* USER CODE END TIM1_BRK_UP_TRG_COM_IRQn 0 */
+  HAL_TIM_IRQHandler(&htim1);
+  /* USER CODE BEGIN TIM1_BRK_UP_TRG_COM_IRQn 1 */
+
+  /* USER CODE END TIM1_BRK_UP_TRG_COM_IRQn 1 */
 }
 
 /* USER CODE BEGIN 1 */
