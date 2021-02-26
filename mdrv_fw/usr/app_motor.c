@@ -54,8 +54,8 @@ void app_motor_init(void)
 
     //__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 350);
     //HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
-    HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 1.0f * 0x0fff / 3.3f);
     HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
+    HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, 1.0f * 0x0fff / 3.3f); // 1.0v
 
     __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
     __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);
