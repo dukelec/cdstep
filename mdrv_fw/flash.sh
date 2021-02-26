@@ -1,4 +1,4 @@
 #!/bin/bash
 
-st-flash --reset write build/linear_motion.bin 0x08006800
+st-flash --reset write build/mdrv_fw.bin 0x08006800
 
