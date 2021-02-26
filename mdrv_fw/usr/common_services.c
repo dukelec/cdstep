@@ -73,22 +73,23 @@ static void p8_service_routine(void)
         return;
 
     if (pkt->dat[0] == 0x2f && pkt->len == 9) {
-        uint8_t ret;
-        uint32_t err_page = 0;
+        int ret = -1;
+        uint32_t err_sector = 0xffffffff;
         FLASH_EraseInitTypeDef f;
         uint32_t addr = *(uint32_t *)(pkt->dat + 1);
         uint32_t len = *(uint32_t *)(pkt->dat + 5);
 
         f.TypeErase = FLASH_TYPEERASE_PAGES;
-        f.PageAddress = addr;
-        f.NbPages = (len + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE;
+        f.Banks = FLASH_BANK_1;
+        f.Page = addr / 2048;
+        f.NbPages = (addr + len) / 2048 - f.Page + 1;
 
         ret = HAL_FLASH_Unlock();
         if (ret == HAL_OK)
-            ret = HAL_FLASHEx_Erase(&f, &err_page);
+            ret = HAL_FLASHEx_Erase(&f, &err_sector);
         ret |= HAL_FLASH_Lock();
+        d_debug("nvm erase: %08x +%08x, %08x, ret: %d\n", addr, len, err_sector, ret);
 
-        d_debug("nvm erase: %08x +%08x, %08x, ret: %d\n", addr, len, err_page, ret);
         pkt->len = 1;
         pkt->dat[0] = ret == HAL_OK ? 0x80 : 0x81;
 
@@ -101,22 +102,21 @@ static void p8_service_routine(void)
         pkt->len = len + 1;
 
     } else if (pkt->dat[0] == 0x20 && pkt->len > 5) {
-        uint8_t ret;
-        uint32_t *dst_dat = (uint32_t *) *(uint32_t *)(pkt->dat + 1);
+        int ret;
+        uint64_t *dst_dat = (uint64_t *) *(uint32_t *)(pkt->dat + 1);
         uint8_t len = pkt->len - 5;
-        uint8_t cnt = (len + 3) / 4;
-        uint32_t *src_dat = (uint32_t *)(pkt->dat + 5);
-        uint8_t i;
+        uint8_t cnt = (len + 7) / 8;
+        uint64_t *src_dat = (uint64_t *)(pkt->dat + 5);
 
         ret = HAL_FLASH_Unlock();
-        for (i = 0; ret == HAL_OK && i < cnt; i++)
-            ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (uint32_t)(dst_dat + i), *(src_dat + i));
+        for (int i = 0; ret == HAL_OK && i < cnt; i++)
+            ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, (uint32_t)(dst_dat + i), *(src_dat + i));
         ret |= HAL_FLASH_Lock();
 
-        d_debug("nvm write: %08x %d(%d), ret: %d\n", dst_dat, pkt->len - 5, cnt, ret);
+        d_debug("nvm write: %08x %d(%d), ret: %d\n", dst_dat, len, cnt, ret);
         pkt->len = 1;
         pkt->dat[0] = ret == HAL_OK ? 0x80 : 0x81;
-#if 0
+/*
     } else if (pkt->len == 9 && pkt->dat[0] == 0x10) {
         uint32_t f_addr = *(uint32_t *)(pkt->dat + 1);
         uint32_t f_len = *(uint32_t *)(pkt->dat + 5);
@@ -126,7 +126,7 @@ static void p8_service_routine(void)
         *(uint16_t *)(pkt->dat + 1) = crc;
         pkt->dat[0] = 0x80;
         pkt->len = 3;
-#endif
+*/
     } else {
         list_put(&dft_ns.free_pkts, &pkt->node);
         d_warn("nvm: wrong cmd, len: %d\n", pkt->len);

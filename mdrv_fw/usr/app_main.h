@@ -18,11 +18,12 @@
 #define P_2F(x) (int)(x), abs(((x)-(int)(x))*100)  // "%d.%.2d"
 #define P_3F(x) (int)(x), abs(((x)-(int)(x))*1000) // "%d.%.3d"
 
-#define APP_CONF_ADDR       0x0800FC00 // last 1k page
+
+#define APP_CONF_ADDR       0x0801f800 // page 63, the last page
 #define APP_CONF_VER        0x0102
 
 #define FRAME_MAX           10
-#define PACKET_MAX          30
+#define PACKET_MAX          60
 
 
 typedef enum {
@@ -35,6 +36,7 @@ typedef struct {
     uint16_t        offset;
     uint16_t        size;
 } regr_t; // reg range
+
 
 typedef struct {
     uint16_t        magic_code; // 0xcdcd
@@ -101,14 +103,12 @@ extern int csa_w_hook_num;
 extern csa_hook_t csa_r_hook[];
 extern int csa_r_hook_num;
 
-extern list_head_t frame_free_head;
-extern cdn_ns_t dft_ns;
-
 
 void app_main(void);
 void load_conf(void);
 int save_conf(void);
 void csa_list_show(void);
+
 void common_service_init(void);
 void common_service_routine(void);
 
@@ -120,5 +120,10 @@ void raw_dbg(int idx);
 void raw_dbg_init(void);
 void raw_dbg_routine(void);
 void limit_det_isr(void);
+
+extern gpio_t led_r;
+extern gpio_t led_g;
+extern cdn_ns_t dft_ns;
+extern list_head_t frame_free_head;
 
 #endif

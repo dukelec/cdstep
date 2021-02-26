@@ -8,14 +8,16 @@
  */
 
 #include "app_main.h"
+#include "math.h"
 
 const csa_t csa_dft = {
         .magic_code = 0xcdcd,
         .conf_ver = APP_CONF_VER,
 
+        .bus_net = 0,
         .bus_cfg = CDCTL_CFG_DFT(0xfe),
         .dbg_en = false,
-        .dbg_dst = { .addr = {0x80, 0x00, 0x00}, .port = 9 },
+        .dbg_dst = { .addr = {0x80, 0x00, 0x00}, .port = 9 }
 };
 
 csa_t csa;

@@ -7,45 +7,45 @@
  * Author: Duke Fong <d@d-l.io>
  */
 
+#include "math.h"
 #include "app_main.h"
 
-extern UART_HandleTypeDef huart2;
+extern UART_HandleTypeDef huart1;
+extern SPI_HandleTypeDef hspi1;
 extern SPI_HandleTypeDef hspi2;
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
 
-extern gpio_t limit_det;
+gpio_t led_r = { .group = LED_R_GPIO_Port, .num = LED_R_Pin };
+gpio_t led_g = { .group = LED_G_GPIO_Port, .num = LED_G_Pin };
 
-static gpio_t led_r = { .group = LED_R_GPIO_Port, .num = LED_R_Pin };
-static gpio_t led_g = { .group = LED_G_GPIO_Port, .num = LED_G_Pin };
-static gpio_t led_b = { .group = LED_B_GPIO_Port, .num = LED_B_Pin };
+uart_t debug_uart = { .huart = &huart1 };
 
-uart_t debug_uart = { .huart = &huart2 };
-
-static gpio_t r_rst_n = { .group = CDCTL_RST_N_GPIO_Port, .num = CDCTL_RST_N_Pin };
-static gpio_t r_int_n = { .group = CDCTL_INT_N_GPIO_Port, .num = CDCTL_INT_N_Pin };
-static gpio_t r_ns = { .group = CDCTL_NS_GPIO_Port, .num = CDCTL_NS_Pin };
-static spi_t r_spi = { .hspi = &hspi2, .ns_pin = &r_ns };
+static gpio_t r_rst = { .group = CD_RST_GPIO_Port, .num = CD_RST_Pin };
+static gpio_t r_int = { .group = CD_INT_GPIO_Port, .num = CD_INT_Pin };
+static gpio_t r_cs = { .group = CD_CS_GPIO_Port, .num = CD_CS_Pin };
+static spi_t r_spi = { .hspi = &hspi1, .ns_pin = &r_cs };
 
 static cd_frame_t frame_alloc[FRAME_MAX];
 list_head_t frame_free_head = {0};
 
 static cdn_pkt_t packet_alloc[PACKET_MAX];
 
-static cdctl_dev_t r_dev = {0}; // RS485
-cdn_ns_t dft_ns = {0};          // CDNET
+static cdctl_dev_t r_dev = {0};    // CDBUS
+cdn_ns_t dft_ns = {0};             // CDNET
 
 
 static void device_init(void)
 {
+    int i;
     cdn_init_ns(&dft_ns);
 
-    for (int i = 0; i < FRAME_MAX; i++)
+    for (i = 0; i < FRAME_MAX; i++)
         list_put(&frame_free_head, &frame_alloc[i].node);
-    for (int i = 0; i < PACKET_MAX; i++)
+    for (i = 0; i < PACKET_MAX; i++)
         list_put(&dft_ns.free_pkts, &packet_alloc[i].node);
 
-    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi, &r_rst_n, &r_int_n);
+    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi, &r_rst, &r_int);
     cdn_add_intf(&dft_ns, &r_dev.cd_dev, csa.bus_net, csa.bus_cfg.mac);
 }
 
@@ -57,24 +57,22 @@ void set_led_state(led_state_t state)
 
     switch (state) {
     case LED_POWERON:
-        gpio_set_value(&led_r, 1);
+        gpio_set_value(&led_r, 0);
         gpio_set_value(&led_g, 1);
-        gpio_set_value(&led_b, 0);
         break;
     case LED_WARN:
-        gpio_set_value(&led_r, 0);
+        gpio_set_value(&led_r, 1);
         gpio_set_value(&led_g, 0);
-        gpio_set_value(&led_b, 1);
         break;
     default:
     case LED_ERROR:
         is_err = true;
-        gpio_set_value(&led_r, 0);
+        gpio_set_value(&led_r, 1);
         gpio_set_value(&led_g, 1);
-        gpio_set_value(&led_b, 1);
         break;
     }
 }
+
 
 extern uint32_t end; // end of bss
 #define STACK_CHECK_SKIP 0x200
@@ -96,6 +94,8 @@ static void stack_check(void)
         if (*(uint32_t *)(&end + i) != 0xababcdcd) {
             printf("stack overflow %p (skip: %p ~ %p): %08lx\n",
                     &end + i, &end, &end + STACK_CHECK_SKIP, *(uint32_t *)(&end + i));
+            d_error("stack overflow %p (skip: %p ~ %p): %08lx\n",
+                    &end + i, &end, &end + STACK_CHECK_SKIP, *(uint32_t *)(&end + i));
             while (true);
         }
     }
@@ -104,15 +104,15 @@ static void stack_check(void)
 
 void app_main(void)
 {
-    printf("\nstart app_main...\n");
+    printf("\nstart app_main (mdrv-step)...\n");
     stack_check_init();
-    debug_init(&dft_ns, &csa.dbg_dst, &csa.dbg_en);
     load_conf();
+    debug_init(&dft_ns, &csa.dbg_dst, &csa.dbg_en);
     device_init();
     common_service_init();
     raw_dbg_init();
-    printf("conf: %s\n", csa.conf_from ? "load from flash" : "use default");
-    d_info("conf: %s\n", csa.conf_from ? "load from flash" : "use default");
+    printf("conf (mdrv-step): %s\n", csa.conf_from ? "load from flash" : "use default");
+    d_info("conf (mdrv-step): %s\n", csa.conf_from ? "load from flash" : "use default");
     csa_list_show();
     app_motor_init();
     d_info("\x1b[92mColor Test\x1b[0m and \x1b[93mAnother Color\x1b[0m...\n");
@@ -127,12 +127,14 @@ void app_main(void)
 }
 
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
 {
-    if (GPIO_Pin == r_int_n.num) {
+    if (GPIO_Pin == r_int.num) {
         cdctl_int_isr(&r_dev);
+#if 0
     } else if (GPIO_Pin == limit_det.num) {
         limit_det_isr();
+#endif
     }
 }
 
@@ -150,5 +152,5 @@ void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
 }
 void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
 {
-    d_error("spi error... [%08lx]\n", hspi->ErrorCode);
+    printf("spi error...\n");
 }

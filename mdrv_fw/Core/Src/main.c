@@ -104,6 +104,8 @@ int main(void)
   MX_SPI2_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
+  void app_main(void);
+  app_main();
 
   /* USER CODE END 2 */
 

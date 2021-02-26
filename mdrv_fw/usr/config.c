@@ -32,8 +32,9 @@ const csa_t csa_dft = {
         .magic_code = 0xcdcd,
         .conf_ver = APP_CONF_VER,
 
+        .bus_net = 0,
         .bus_cfg = CDCTL_CFG_DFT(0xfe),
-        .dbg_en = true,
+        .dbg_en = false,
         .dbg_dst = { .addr = {0x80, 0x00, 0x00}, .port = 9 },
 
         .qxchg_set = {
@@ -86,9 +87,9 @@ int save_conf(void)
     uint8_t ret;
     uint32_t err_page = 0;
     FLASH_EraseInitTypeDef f;
-
     f.TypeErase = FLASH_TYPEERASE_PAGES;
-    f.PageAddress = APP_CONF_ADDR;
+    f.Banks = FLASH_BANK_1;
+    f.Page = 63; // last page
     f.NbPages = 1;
 
     ret = HAL_FLASH_Unlock();
@@ -96,25 +97,21 @@ int save_conf(void)
         ret = HAL_FLASHEx_Erase(&f, &err_page);
 
     if (ret != HAL_OK)
-        printf("conf: failed to erase flash\n");
+        d_info("conf: failed to erase flash\n");
 
-    uint32_t *dst_dat = (uint32_t *)APP_CONF_ADDR;
-    uint32_t *src_dat = (uint32_t *)&csa;
-    int cnt = (offsetof(csa_t, state) + 3) / 4;
+    uint64_t *dst_dat = (uint64_t *)APP_CONF_ADDR;
+    uint64_t *src_dat = (uint64_t *)&csa;
+    int cnt = (offsetof(csa_t, state) + 7) / 8;
 
-    for (int i = 0; ret == HAL_OK && i < cnt; i++) {
-        ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, (uint32_t)(dst_dat + i), *(src_dat + i));
-        printf("w: csa @ %08lx, addr %08lx <- val: %08lx\n",
-                (uint32_t)(src_dat + i), (uint32_t)(dst_dat + i), *(src_dat + i));
-    }
-
+    for (int i = 0; ret == HAL_OK && i < cnt; i++)
+        ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, (uint32_t)(dst_dat + i), *(src_dat + i));
     ret |= HAL_FLASH_Lock();
 
     if (ret == HAL_OK) {
-        printf("conf: save to flash successed\n");
+        d_info("conf: save to flash successed\n");
         return 0;
     } else {
-        printf("conf: save to flash error\n");
+        d_error("conf: save to flash error\n");
         return 1;
     }
 }
@@ -144,8 +141,7 @@ int save_conf(void)
 
 void csa_list_show(void)
 {
-    d_debug("csa_list_show:\n");
-    d_debug("\n"); debug_flush(true);
+    d_info("csa_list_show:\n\n"); debug_flush(true);
 
     CSA_SHOW(1, magic_code, "Magic code: 0xcdcd");
     CSA_SHOW(1, conf_ver, "Config version");

@@ -14,6 +14,7 @@
 # target
 ######################################
 TARGET = mdrv_fw
+GIT_VERSION := $(shell git describe --dirty --always --tags)
 
 
 ######################################
@@ -61,7 +62,21 @@ Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_tim.c \
 Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_tim_ex.c \
 Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_uart.c \
 Drivers/STM32G0xx_HAL_Driver/Src/stm32g0xx_hal_uart_ex.c \
-Core/Src/system_stm32g0xx.c  
+Core/Src/system_stm32g0xx.c \
+cdnet/dispatch/cdnet_dispatch.c \
+cdnet/dispatch/helper.c \
+cdnet/parser/cdnet_l0.c \
+cdnet/parser/cdnet_l1.c \
+cdnet/dev/cdctl_it.c \
+cdnet/utils/cd_list.c \
+cdnet/utils/rbtree.c \
+cdnet/utils/cd_debug.c \
+cdnet/utils/hex_dump.c \
+usr/config.c \
+usr/common_services.c \
+usr/app_main.c \
+usr/app_cam.c \
+usr/speck.c
 
 # ASM sources
 ASM_SOURCES =  \
@@ -101,7 +116,7 @@ CPU = -mcpu=cortex-m0plus
 
 
 # mcu
-MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI)
+MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI) -Wdouble-promotion # -u _printf_float
 
 # macros for gcc
 # AS defines
@@ -110,7 +125,8 @@ AS_DEFS =
 # C defines
 C_DEFS =  \
 -DUSE_HAL_DRIVER \
--DSTM32G071xx
+-DSTM32G071xx \
+-DSW_VER=\"$(GIT_VERSION)\"
 
 
 # AS includes
@@ -123,7 +139,12 @@ C_INCLUDES =  \
 -IDrivers/STM32G0xx_HAL_Driver/Inc/Legacy \
 -IDrivers/CMSIS/Device/ST/STM32G0xx/Include \
 -IDrivers/CMSIS/Include \
--IDrivers/CMSIS/Include
+-Icdnet/parser \
+-Icdnet/dispatch \
+-Icdnet/utils \
+-Icdnet/dev \
+-Icdnet/arch/stm32 \
+-Iusr
 
 
 # compile gcc flags
