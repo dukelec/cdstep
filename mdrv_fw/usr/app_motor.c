@@ -97,6 +97,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         csa.tc_state = 0;
         csa.tc_vc = 0;
         csa.tc_ac = 0;
+        raw_dbg(0);
         csa.time_cnt += 10000;
         return;
     }

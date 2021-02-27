@@ -11,11 +11,12 @@
 
 static cdn_sock_t sock_raw_dbg = { .port = 0xa, .ns = &dft_ns, .tx_only = true }; // raw debug
 static list_head_t raw_pend = { 0 };
+static cdn_pkt_t *pkt_raw[2] = { NULL };
+static uint32_t t_last[2] = { 0 };
 
 
 void raw_dbg(int idx)
 {
-    static cdn_pkt_t *pkt_raw[2] = { NULL };
     static bool pkt_less = false;
 
     if (!(csa.dbg_raw_msk & (1 << idx))) {
@@ -25,6 +26,7 @@ void raw_dbg(int idx)
         }
         return;
     }
+    t_last[idx] = get_systick();
 
     if (pkt_less) {
         if (raw_pend.len == 0) {
@@ -76,4 +78,15 @@ void raw_dbg_routine(void)
             cdn_sock_sendto(&sock_raw_dbg, pkt);
         }
     }
+
+    uint32_t flags;
+    local_irq_save(flags);
+    uint32_t t_cur = get_systick();
+    for (int i = 0; i < 2; i++) {
+        if (pkt_raw[i] && t_cur - t_last[i] > 500000 / SYSTICK_US_DIV) {
+            list_put(&raw_pend, &pkt_raw[i]->node);
+            pkt_raw[i] = NULL;
+        }
+    }
+    local_irq_restore(flags);
 }
