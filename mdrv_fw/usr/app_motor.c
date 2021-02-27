@@ -20,11 +20,11 @@ static gpio_t drv_md3 = { .group = DRV_MD3_GPIO_Port, .num = DRV_MD3_Pin };
 static gpio_t drv_step = { .group = DRV_STEP_GPIO_Port, .num = DRV_STEP_Pin };
 static gpio_t drv_dir = { .group = DRV_DIR_GPIO_Port, .num = DRV_DIR_Pin };
 
-//gpio_t limit_det = { .group = LIMIT_DET_GPIO_Port, .num = LIMIT_DET_Pin };
-
 
 uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 {
+    static uint8_t last_csa_state = 0;
+
     gpio_set_value(&drv_en, csa.state);
 
     if (csa.state && csa.tc_state == 2)
@@ -42,6 +42,16 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
         __HAL_TIM_SET_AUTORELOAD(&htim1, tim_val);
         __HAL_TIM_ENABLE(&htim1);
     }
+
+    if (!csa.state && last_csa_state) {
+        d_debug("disable motor ...\n");
+        uint32_t flags;
+        local_irq_save(flags);
+        csa.tc_pos = csa.cur_pos;
+        local_irq_restore(flags);
+    }
+
+    last_csa_state = csa.state;
     return 0;
 }
 

@@ -74,6 +74,7 @@ void Error_Handler(void);
 #define DRV_MO_GPIO_Port GPIOB
 #define SEN_INT_Pin GPIO_PIN_12
 #define SEN_INT_GPIO_Port GPIOB
+#define SEN_INT_EXTI_IRQn EXTI4_15_IRQn
 #define CD_CS_Pin GPIO_PIN_15
 #define CD_CS_GPIO_Port GPIOA
 #define LED_G_Pin GPIO_PIN_1

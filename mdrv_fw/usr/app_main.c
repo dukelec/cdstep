@@ -26,6 +26,8 @@ static gpio_t r_int = { .group = CD_INT_GPIO_Port, .num = CD_INT_Pin };
 static gpio_t r_cs = { .group = CD_CS_GPIO_Port, .num = CD_CS_Pin };
 static spi_t r_spi = { .hspi = &hspi1, .ns_pin = &r_cs };
 
+static gpio_t sen_int = { .group = SEN_INT_GPIO_Port, .num = SEN_INT_Pin }; // position limit
+
 static cd_frame_t frame_alloc[FRAME_MAX];
 list_head_t frame_free_head = {0};
 
@@ -149,10 +151,8 @@ void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == r_int.num) {
         cdctl_int_isr(&r_dev);
-#if 0
-    } else if (GPIO_Pin == limit_det.num) {
+    } else if (GPIO_Pin == sen_int.num) {
         limit_det_isr();
-#endif
     }
 }
 
