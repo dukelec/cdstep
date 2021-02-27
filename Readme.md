@@ -3,14 +3,41 @@ CD-MDRV-STEP Introduction
 
 中文說明 (Chinese): [./Readme_zh.md](./Readme_zh.md)
 
+<img src="doc/cdmdrv_step.jpg">
+
 Download this project:
 ```
 git clone --recurse-submodules https://github.com/dukelec/stepper_motor_controller.git
 ```
 
+## GUI Tool
+
+CDBUS GUI Tool: https://github.com/dukelec/cdbus_gui
+
+After power on, first write 1 to `state`, then write the target position to `tc_pos`, then the stepper motor will rotate.
+
+<img src="doc/cdbus_gui.png">
+
+
+After modifying the configuration, write 1 to `save_conf` to save the configuration to flash.  
+If you need to restore the default configuration, change `magic_code` to another value and save it to flash. Then reapply power.
+
+Logs:
+
+<img src="doc/csa_list_show.png">
+
+Plots:
+
+<img src="doc/plot.png">
+
+Plot details, IAP upgrade, data import/export (including registers, logs, plots).
+
+<img src="doc/iap_export.png">
+
+
 ## Protocol
 
-MDRV is an open source stepper motor controller, it uses RS485 interface, the default baud rate is 115200 bps, the highest > 10 Mbps, the default address is 0xfe.
+MDRV-STEP is an open source stepper motor controller, it uses RS485 interface, the default baud rate is 115200 bps, the highest > 10 Mbps, the default address is 0xfe.
 
 The underlying protocol is CDBUS, and its frame format is  
 `src, dst, len, [payload], crc_l, crc_h`
@@ -58,11 +85,8 @@ For the read command, the data format that the user needs can be prepared in adv
 
 In addition, in order to facilitate the user's overall synchronization of csa information, we have defined which areas of the csa can be written. Users don't need to avoid the unwritable area carefully, the written data will be ignored directly.
 
-For example, in the following example, we can directly put the pid object in the csa table. The tail of the pid object is some internal variables, which should not be modified by the user.
+For example, we can directly put a pid object in the csa table. The pid object has some internal variables, which should not be modified by the user.
 With the definition of writable area, users can write data in a whole block very conveniently, without worrying about writing data that should not be written.
-
-<img src="doc/csa_pid.png">
-
 
 The subcommands for reading and writing the parameter table are:
 
@@ -74,17 +98,13 @@ write:      0x20, offset_16 + [data] | return [0x80] on success
 
 For example, set the motor to be powered on and locked. The value of motor state `state` is: 0 power-down, 1 power-on lock.
 
-The address of the `state` itself is `0x0100`, the length is 1 byte, then when it needs to be locked, send the following data to port 5:
+The address of the `state` itself is `0x00b8`, the length is 1 byte, then when it needs to be locked, send the following data to port 5:
 ```
-20  00 01  01
+20  b8 00  01
 ```
-`20` is the subcommand `write`, `00 01` is the little-endian format of the address 0x0100 (unless otherwise specified, all use little-endian), and the last `01` is the write value.
+`20` is the subcommand `write`, `b8 00` is the little-endian format of the address 0x00b8 (unless otherwise specified, all use little-endian), and the last `01` is the write value.
 
-For the specific parameter list, please refer to the file `mdrv_reg.py` in the `tools` directory.
-
-Modifying the definition of `csa_t` may affect the address of many registers. If you manually calculate the address of each register every time, it is troublesome and error-prone. Therefore, we use the function `csa_list_show`, which will automatically Print out the address, type, and description information of all registers, which can be directly copied to the document or Python source code.
-
-<img src="doc/csa_list_show.png">
+Modifying the definition of `csa_t` may affect the address of many registers. If we calculate the address of each register manually each time, it is very troublesome and easy to make mistakes, so we use the function `csa_list_show` to automatically print out the address, type, and description information of all registers when power on, which can be directly copied to the configuration file.
 
 Every time you modify the definition of `csa_t`, please also modify the version number of `conf_ver` in it.
 
@@ -104,9 +124,8 @@ Moreover, we also want the device to reply to the error code of the motor and so
 There is the configuration of the Data Quick Exchange channel in the parameter table:
 
 ```
-regr_t          qxchg_set[10];
-regr_t          qxchg_ret[10];
-regr_t          qxchg_ro[10];
+regr_t          qxchg_set[5];
+regr_t          qxchg_ret[5];
 ```
 In the above array, the first element with a size value of 0 means it and the subsequent ones are not used. Definition of elements:
 ```
@@ -120,22 +139,11 @@ typedef struct {
 Set up which data to write and which data to return in advance, and then send `20` + data to be written.
 Will return `80` + the returned data.
 
-`qxchg_ro` is the read-only subcommand `00` which specifies what data to return.
-
-The default setting:
-```
-.qxchg_set = {
-        { .offset = offsetof(csa_t, tc_pos), .size = 4 * 3 }
-},
-.qxchg_ret = {
-        { .offset = offsetof(csa_t, cur_pos), .size = 4 * 2 }
-},
-```
-
-`qxchg_set` only uses one element, pointing to the area where the three entries of `tc_pos`, `tc_speed` and `tc_accel` are located.  
+`qxchg_set` default only uses one element, pointing to the area where the three entries of `tc_pos`, `tc_speed` and `tc_accel` are located.  
 If you need to modify the target position parameter `tc_pos` to 0, just write the data `20  00 00 00 00` to port 6 (`20` is the subcommand number).  
 If you need to modify the target position and target speed at the same time, for example, the position is 0x00001000, and the speed is 0x00000500, then write `20  00 10 00 00  00 05 00 00`.
 
+The subcommand `2f` supports receiving broadcast or multicast packets containing data for multiple devices.
 
 
 ### Port 8: Flash read and write
@@ -158,44 +166,19 @@ After the Bootloader is powered on, first use the default baud rate of 115200. I
 If the command is still not received after another second, the APP firmware will be executed.
 Bootloader and APP share the beginning of the csa configuration, which contains the baud rate set by the user.
 
-If you don't know the current ID number of MDRV, you can send a command to the broadcast address 0xff, but you need to make sure that there are no other devices on the bus.
+If you don't know the current ID number of MDRV, you can send an info command to the broadcast address 0xff to search for it.
 
-The current MCU Flash is 64K in total, each page size is 1K, the first 26K stores the Bootloader, the last 1K stores the csa parameter table, and the rest are APP.
-
-Screenshot of iap operation using iap tool:
-<img src="doc/iap.png">
+The current MCU Flash is 128K in total, each page size is 2K, the first 24K stores the Bootloader, the last 2K stores the csa parameter table, and the rest are APP.
 
 
-## Raw data debugging
+## Plot protocol
 
-Just like the `qxchg_XXX` array of the Quick Exchange channel, the raw data uses the same method to define the data to be reported, and you can freely configure the variables you want to observe.
+Just like the `qxchg_XXX` array of the Quick Exchange channel, the plot uses the same method to define the data to be reported, and you can freely configure the variables you want to observe.
 Different from `qxchg_XXX`, a data packet will store a lot of data, and it will be sent to the host after the data packet is full to a certain extent.
 
-If it is a fixed cycle, such as FOC motor, you can add 1 to a variable (such as `loop_cnt`) in the current loop, and then just write `loop_cnt` at the top of each data packet.  
-But our stepper motor control, the cycle is not fixed, so the time information and other observed variables should be recorded together every time.
+If it is a fixed period, such as FOC motor, you can add 1 to a variable (such as `loop_cnt`) in the current loop, and then just write `loop_cnt` at the top of each data packet.  
+But for the stepper motor control, the period is not fixed, so the time information and other observed variables should be recorded together every time.
 
-When debugging with raw data, it is recommended to set the baud rate of the device higher.  
+When debugging with plot, it is recommended to set the baud rate of the device higher.  
 If the amount of data is large, MDRV will store continuous information in the buffer. After the buffer is full, it will wait for the buffer to be completely emptied before continuing, which can ensure the continuity of the data to the greatest extent and avoid loss of details.
-
-The next section will explain how to display these data.
-
-
-## MDRV test tool
-
-n addition to using `cdbus_terminal.py` of `cdbus_tools` to send cdbus frame data, or `cdnet_terminal.py` to send higher-level cdnet data,
-It is more convenient to use the supporting tools of MDRV, in addition to basic control, you can also capture the data of the motor running and display the graph.
-
-For example, after running the tool (if the motor is powered on, the version information of the motor will be printed):  
-Enter m and state to enter the corresponding state, for example, m1 is: lock and enter position mode, m0 is stop.
-d1 is to open the raw data debugging function, d0 is to close.
-
-After entering the position mode, enter p followed by the position to specify the movement to the target position.  
-
-The gray information is the print debugging of the motor printf, which is automatically reported to the computer. This can be very convenient for remote debugging.
-For example, a robot arm in motion is very dangerous with traditional debugging methods. There are also some devices that need to be opened for debugging, which is very inconvenient.
-
-<img src="doc/tool1.png">
-
-Drag with the right mouse button to zoom in details conveniently:
-<img src="doc/tool2.png">
 

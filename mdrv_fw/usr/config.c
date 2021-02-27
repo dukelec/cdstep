@@ -40,6 +40,7 @@ const csa_t csa_dft = {
         .dbg_en = false,
         .dbg_dst = { .addr = {0x80, 0x00, 0x00}, .port = 9 },
 
+        .qxchg_mcast = { .offset = 0, .size = 4 * 3},
         .qxchg_set = {
                 { .offset = offsetof(csa_t, tc_pos), .size = 4 * 3 }
         },
@@ -133,6 +134,7 @@ int save_conf(void)
                 float: "f", \
                 char *: "[c]", \
                 uint8_t *: "[B]", \
+                regr_t: "H,H", \
                 regr_t *: "{H,H}", \
                 default: "-"))
 
@@ -171,6 +173,7 @@ void csa_list_show(void)
     CSA_SHOW_SUB(1, dbg_dst, cdn_sockaddr_t, port, "Send debug message to this port");
     d_debug("\n"); debug_flush(true);
 
+    CSA_SHOW(1, qxchg_mcast, "Quick-exchange multicast data slice");
     CSA_SHOW(1, qxchg_set, "Config the write data components for quick-exchange channel");
     CSA_SHOW(1, qxchg_ret, "Config the return data components for quick-exchange channel");
     CSA_SHOW(1, qxchg_ro, "Config the return data components for the read only quick-exchange channel");
@@ -184,7 +187,7 @@ void csa_list_show(void)
     CSA_SHOW(1, dbg_raw[1], "Config raw debug for plot1");
     d_info("\n"); debug_flush(true);
 
-    CSA_SHOW(0, ref_volt, "Motor reference voltage, unit: mv");
+    CSA_SHOW(0, ref_volt, "Motor reference voltage, unit: mV");
     CSA_SHOW(0, tc_pos, "Set target position");
     CSA_SHOW(0, tc_speed, "Set target speed");
     CSA_SHOW(0, tc_accel, "Set target accel");
@@ -200,6 +203,7 @@ void csa_list_show(void)
     CSA_SHOW(0, tc_ac, "Motor current accel");
     d_debug("\n"); debug_flush(true);
 
+    CSA_SHOW(0, time_cnt, "Count for plot");
     CSA_SHOW(0, string_test, "String test");
     d_debug("\n"); debug_flush(true);
 }

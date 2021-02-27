@@ -132,9 +132,9 @@ void app_main(void)
     raw_dbg_init();
     printf("conf (mdrv-step): %s\n", csa.conf_from ? "load from flash" : "use default");
     d_info("conf (mdrv-step): %s\n", csa.conf_from ? "load from flash" : "use default");
+    d_info("\x1b[92mColor Test\x1b[0m and \x1b[93mAnother Color\x1b[0m...\n");
     csa_list_show();
     app_motor_init();
-    d_info("\x1b[92mColor Test\x1b[0m and \x1b[93mAnother Color\x1b[0m...\n");
 
     while (true) {
         stack_check();
