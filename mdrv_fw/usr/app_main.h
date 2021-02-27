@@ -20,7 +20,7 @@
 
 
 #define APP_CONF_ADDR       0x0801f800 // page 63, the last page
-#define APP_CONF_VER        0x0102
+#define APP_CONF_VER        0x0103
 
 #define FRAME_MAX           10
 #define PACKET_MAX          60
@@ -63,6 +63,8 @@ typedef struct {
     uint8_t         dbg_raw_msk;
     uint8_t         dbg_raw_th;      // len threshold (+ 1 samples < pkt size)
     regr_t          dbg_raw[2][6];
+
+    uint16_t        ref_volt;
 
     int32_t         tc_pos;
     uint32_t        tc_speed;
@@ -115,6 +117,7 @@ void common_service_routine(void);
 void set_led_state(led_state_t state);
 
 uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
+uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
 void app_motor_init(void);
 void raw_dbg(int idx);
 void raw_dbg_init(void);

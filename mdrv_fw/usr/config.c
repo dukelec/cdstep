@@ -18,6 +18,9 @@ csa_hook_t csa_w_hook[] = {
         {
             .range = { .offset = offsetof(csa_t, tc_pos), .size = offsetof(csa_t, tc_state) - offsetof(csa_t, tc_pos) },
             .after = motor_w_hook
+        }, {
+            .range = { .offset = offsetof(csa_t, ref_volt), .size = sizeof(((csa_t *)0)->ref_volt) },
+            .after = ref_volt_w_hook
         }
 };
 
@@ -57,6 +60,8 @@ const csa_t csa_dft = {
                         { .offset = offsetof(csa_t, cur_pos), .size = 4 * 2 } // + tc_vc
                 }
         },
+
+        .ref_volt = 1000,
 
         .tc_speed = 10000, // max speed is about 200000
         .tc_accel = 5000,
@@ -179,6 +184,7 @@ void csa_list_show(void)
     CSA_SHOW(1, dbg_raw[1], "Config raw debug for plot1");
     d_info("\n"); debug_flush(true);
 
+    CSA_SHOW(0, ref_volt, "Motor reference voltage, unit: mv");
     CSA_SHOW(0, tc_pos, "Set target position");
     CSA_SHOW(0, tc_speed, "Set target speed");
     CSA_SHOW(0, tc_accel, "Set target accel");
