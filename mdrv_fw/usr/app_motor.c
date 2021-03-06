@@ -19,20 +19,23 @@ static gpio_t drv_md2 = { .group = DRV_MD2_GPIO_Port, .num = DRV_MD2_Pin };
 static gpio_t drv_md3 = { .group = DRV_MD3_GPIO_Port, .num = DRV_MD3_Pin };
 static gpio_t drv_step = { .group = DRV_STEP_GPIO_Port, .num = DRV_STEP_Pin };
 static gpio_t drv_dir = { .group = DRV_DIR_GPIO_Port, .num = DRV_DIR_Pin };
+static gpio_t drv_mo = { .group = DRV_MO_GPIO_Port, .num = DRV_MO_Pin };
 
 
 uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 {
+    uint32_t flags;
     static uint8_t last_csa_state = 0;
-
     gpio_set_value(&drv_en, csa.state);
 
+    local_irq_save(flags);
     if (csa.state && csa.tc_state == 2)
         csa.tc_state = 1;
 
     if (csa.state && !csa.tc_state && csa.tc_pos != csa.cur_pos) {
-        d_debug("run motor ...\n");
+        local_irq_restore(flags);
 
+        d_debug("run motor ...\n");
         csa.tc_vc = sign(csa.tc_pos - csa.cur_pos) * (float)csa.tc_speed_min;
         int tim_val = abs(lroundf(1000000.0f / csa.tc_vc));
 
@@ -41,11 +44,12 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 
         __HAL_TIM_SET_AUTORELOAD(&htim1, tim_val);
         __HAL_TIM_ENABLE(&htim1);
+    } else {
+        local_irq_restore(flags);
     }
 
     if (!csa.state && last_csa_state) {
         d_debug("disable motor ...\n");
-        uint32_t flags;
         local_irq_save(flags);
         csa.tc_pos = csa.cur_pos;
         local_irq_restore(flags);
@@ -65,23 +69,43 @@ uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 
 void app_motor_init(void)
 {
-    //HAL_NVIC_EnableIRQ(EXTI1_IRQn);
-    //HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
     set_led_state(LED_POWERON);
 
-    //__HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, 350);
-    //HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
     HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
     HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, (csa.ref_volt / 1000.0f) * 0x0fff / 3.3f);
 
+    gpio_set_value(&drv_md1, csa.md_val & 1);
+    gpio_set_value(&drv_md2, csa.md_val & 2);
+    gpio_set_value(&drv_md3, csa.md_val & 4);
+    gpio_set_value(&drv_en, csa.state);
+
     __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
     __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);
+}
 
-    // 200 steps per 360 'C
-    gpio_set_value(&drv_md1, 0);
-    gpio_set_value(&drv_md2, 0);
-    gpio_set_value(&drv_md3, 1);
-    gpio_set_value(&drv_en, csa.state);
+void app_motor_routine(void)
+{
+    int s;
+    uint32_t flags;
+
+    if (csa.set_home) {
+        // retain microstep to improve repetition accuracy
+        local_irq_save(flags);
+        s = sign(csa.cur_pos);
+        csa.cur_pos = s * (abs(csa.cur_pos) & ((4 << csa.md_val) - 1));
+        csa.cur_pos &= (4 << csa.md_val) - 1;
+        csa.tc_pos = 0;
+        local_irq_restore(flags);
+        d_debug("after set home cur_pos: %d\n", csa.cur_pos);
+        csa.set_home = false;
+        motor_w_hook(0, 0, NULL);
+    }
+
+    // disable motor driver reset microstep
+    if (!csa.state && !csa.tc_state) {
+        s = sign(csa.cur_pos);
+        csa.cur_pos = s * (abs(csa.cur_pos) & ~((4 << csa.md_val) - 1));
+    }
 }
 
 
@@ -91,6 +115,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     gpio_get_value(&drv_dir) ? csa.cur_pos++ :  csa.cur_pos--;
     gpio_set_value(&drv_step, 1);
     gpio_set_value(&drv_step, 0);
+
+    // microstep accuracy checking
+    bool mo_val = gpio_get_value(&drv_mo);
+    if (mo_val == 0) {
+        if ((csa.cur_pos & ((4 << csa.md_val) - 1)) != 0)
+            d_warn("mo @%d\n", csa.cur_pos);
+    }
 
     if (csa.cur_pos == csa.tc_pos && lroundf(fabsf(csa.tc_vc)) <= csa.tc_speed_min) {
         d_debug("tim: arrive pos %d, period: %d.%.2d\n",  csa.tc_pos,  P_2F(csa.tc_vc));
@@ -149,7 +180,9 @@ void limit_det_isr(void)
 {
     d_debug("lim: detected\n");
 
-    // will go different direction if tc_vc >= tc_speed_min:
-    csa.cur_pos = 0;
+    // will go different direction if tc_vc >= tc_speed_min
+    // retain microstep to improve repetition accuracy
+    int s = sign(csa.cur_pos);
+    csa.cur_pos = s * (abs(csa.cur_pos) & ((4 << csa.md_val) - 1));
     csa.tc_pos = 0;
 }

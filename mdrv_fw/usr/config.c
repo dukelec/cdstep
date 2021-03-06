@@ -63,6 +63,7 @@ const csa_t csa_dft = {
         },
 
         .ref_volt = 1000,
+        .md_val = 4,       // 3'b100
 
         .tc_speed = 10000, // max speed is about 200000
         .tc_accel = 5000,
@@ -187,7 +188,9 @@ void csa_list_show(void)
     CSA_SHOW(1, dbg_raw[1], "Config raw debug for plot1");
     d_info("\n"); debug_flush(true);
 
-    CSA_SHOW(0, ref_volt, "Motor reference voltage, unit: mV");
+    CSA_SHOW(0, ref_volt, "Motor driver reference voltage, unit: mV");
+    CSA_SHOW(0, md_val, "Motor driver md[2:0] pin value");
+    CSA_SHOW(0, set_home, "Write 1 set home position");
     CSA_SHOW(0, tc_pos, "Set target position");
     CSA_SHOW(0, tc_speed, "Set target speed");
     CSA_SHOW(0, tc_accel, "Set target accel");

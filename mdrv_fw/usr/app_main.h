@@ -20,7 +20,7 @@
 
 
 #define APP_CONF_ADDR       0x0801f800 // page 63, the last page
-#define APP_CONF_VER        0x0103
+#define APP_CONF_VER        0x0104
 
 #define FRAME_MAX           10
 #define PACKET_MAX          60
@@ -39,11 +39,11 @@ typedef struct {
 
 
 typedef struct {
-    uint16_t        magic_code; // 0xcdcd
+    uint16_t        magic_code;     // 0xcdcd
     uint16_t        conf_ver;
-    bool            conf_from;  // 0: default, 1: load from flash
+    bool            conf_from;      // 0: default, 1: load from flash
     bool            do_reboot;
-    bool            _reserved;  // keep_in_bl for bl
+    bool            _reserved_bl;   // keep_in_bl for bl
     bool            save_conf;
 
     uint8_t         bus_net;
@@ -56,6 +56,7 @@ typedef struct {
     regr_t          qxchg_ret[5];
     regr_t          qxchg_ro[5];
 
+    uint8_t         _reserved1[10];
     //uint8_t       dbg_str_msk;
     //uint16_t      dbg_str_skip;    // for period print debug
 
@@ -65,19 +66,24 @@ typedef struct {
     regr_t          dbg_raw[2][6];
 
     uint16_t        ref_volt;
+    uint8_t         md_val;
+    bool            set_home;
+    uint8_t         _reserved2[9];
 
     int32_t         tc_pos;
     uint32_t        tc_speed;
     uint32_t        tc_accel;
     uint32_t        tc_speed_min;
+    uint8_t         _reserved3[10];
 
     // end of flash
 
-    uint8_t         state;      // 0: drv not enable, 1: drv enable
-    uint8_t         tc_state;   // t_curve: 0: stop, 1: run, 2: tailer
+    uint8_t         state;          // 0: drv not enable, 1: drv enable
+    uint8_t         tc_state;       // t_curve: 0: stop, 1: run, 2: tailer
     int             cur_pos;
     float           tc_vc;
     float           tc_ac;
+    uint8_t         _reserved4[10];
 
     uint32_t        time_cnt;
     char            string_test[10]; // for cdbus_gui tool test
@@ -118,6 +124,7 @@ void set_led_state(led_state_t state);
 
 uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
 uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
+void app_motor_routine(void);
 void app_motor_init(void);
 void raw_dbg(int idx);
 void raw_dbg_init(void);

@@ -139,6 +139,7 @@ void app_main(void)
     while (true) {
         stack_check();
         //dump_hw_status();
+        app_motor_routine();
         cdn_routine(&dft_ns); // handle cdnet
         common_service_routine();
         raw_dbg_routine();
