@@ -93,7 +93,6 @@ void app_motor_routine(void)
         local_irq_save(flags);
         s = sign(csa.cur_pos);
         csa.cur_pos = s * (abs(csa.cur_pos) & ((4 << csa.md_val) - 1));
-        csa.cur_pos &= (4 << csa.md_val) - 1;
         csa.tc_pos = 0;
         local_irq_restore(flags);
         d_debug("after set home cur_pos: %d\n", csa.cur_pos);
@@ -180,9 +179,11 @@ void limit_det_isr(void)
 {
     d_debug("lim: detected\n");
 
-    // will go different direction if tc_vc >= tc_speed_min
-    // retain microstep to improve repetition accuracy
-    int s = sign(csa.cur_pos);
-    csa.cur_pos = s * (abs(csa.cur_pos) & ((4 << csa.md_val) - 1));
-    csa.tc_pos = 0;
+    // It will go to different direction if tc_vc >= tc_speed_min.
+
+    // To improve the repetition accuracy,
+    // go to the closest microstep value triggered by the limit switch in the last calibration,
+    // and then run the set_home command.
+
+    csa.tc_pos = csa.cur_pos;
 }
