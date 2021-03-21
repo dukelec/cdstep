@@ -55,6 +55,33 @@ static void p1_service_routine(void)
         cdn_sock_sendto(&sock1, pkt);
         return;
     }
+
+    if (pkt->len >= 5 && pkt->dat[0] == 0x10) {
+        uint16_t max_time = *(uint16_t *)(pkt->dat + 1);
+        uint16_t wait_time = rand() / (RAND_MAX / max_time);
+        uint8_t mac_start = pkt->dat[3];
+        uint8_t mac_end = pkt->dat[4];
+        uint8_t local_mac = csa.bus_cfg.mac;
+        pkt->dat[pkt->len] = '\0';
+        char *string = (char *)pkt->dat + 5;
+        d_debug("p1 search: wait %d (%d), [%02x, %02x] (%02x), str: %s\n",
+                wait_time, max_time, mac_start, mac_end, local_mac, string);
+
+        if (clip(local_mac, mac_start, mac_end) == local_mac && strstr(info_str, string) != NULL) {
+            uint32_t t_last = get_systick();
+            while (get_systick() - t_last < wait_time * 1000 / SYSTICK_US_DIV);
+            pkt->dat[0] = 0x80;
+            strcpy((char *)pkt->dat + 1, info_str);
+            pkt->len = strlen(info_str) + 1;
+            pkt->dst = pkt->src;
+            cdn_sock_sendto(&sock1, pkt);
+            csa.conf_from &= 0x7f;
+            return;
+        } else {
+            csa.conf_from |= 0x80;
+        }
+    }
+
     d_debug("p1 ser: ignore\n");
     list_put(&dft_ns.free_pkts, &pkt->node);
 }
@@ -351,11 +378,13 @@ void common_service_init(void)
     cdn_sock_bind(&sock6);
     cdn_sock_bind(&sock8);
     init_info_str();
+    uint32_t *u_id = (uint32_t *)UID_BASE;
+    srand(u_id[0] + u_id[1] + u_id[2] + get_systick());
 }
 
 void common_service_routine(void)
 {
-    if (csa.save_conf) {
+    if (csa.save_conf && !(csa.conf_from & 0x80)) {
         csa.save_conf = false;
         save_conf();
     }

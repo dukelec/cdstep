@@ -41,7 +41,7 @@ typedef struct {
 typedef struct {
     uint16_t        magic_code;     // 0xcdcd
     uint16_t        conf_ver;
-    bool            conf_from;      // 0: default, 1: load from flash
+    uint8_t         conf_from;      // 0: default, 1: load from flash
     bool            do_reboot;
     bool            _reserved_bl;   // keep_in_bl for bl
     bool            save_conf;

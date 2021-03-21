@@ -154,7 +154,7 @@ void csa_list_show(void)
 
     CSA_SHOW(1, magic_code, "Magic code: 0xcdcd");
     CSA_SHOW(1, conf_ver, "Config version");
-    CSA_SHOW(0, conf_from, "0: default config, 1: load from flash");
+    CSA_SHOW(1, conf_from, "0: default config, 1: load from flash");
     CSA_SHOW(0, do_reboot, "Write 1 to reboot");
     CSA_SHOW(0, save_conf, "Write 1 to save current config to flash");
     d_debug("\n"); debug_flush(true);
