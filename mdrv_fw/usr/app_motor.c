@@ -20,6 +20,7 @@ static gpio_t drv_md3 = { .group = DRV_MD3_GPIO_Port, .num = DRV_MD3_Pin };
 static gpio_t drv_step = { .group = DRV_STEP_GPIO_Port, .num = DRV_STEP_Pin };
 static gpio_t drv_dir = { .group = DRV_DIR_GPIO_Port, .num = DRV_DIR_Pin };
 static gpio_t drv_mo = { .group = DRV_MO_GPIO_Port, .num = DRV_MO_Pin };
+static bool limit_disable = false;
 
 
 uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
@@ -105,6 +106,9 @@ void app_motor_routine(void)
         s = sign(csa.cur_pos);
         csa.cur_pos = s * (abs(csa.cur_pos) & ~((4 << csa.md_val) - 1));
     }
+
+    if (!csa.tc_state)
+        limit_disable = false;
 }
 
 
@@ -177,7 +181,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
 void limit_det_isr(void)
 {
-    d_debug("lim: detected\n");
+    d_debug("lim: detected, %d\n", limit_disable);
 
     // It will go to different direction if tc_vc >= tc_speed_min.
 
@@ -185,5 +189,8 @@ void limit_det_isr(void)
     // go to the closest microstep value triggered by the limit switch in the last calibration,
     // and then run the set_home command.
 
-    csa.tc_pos = csa.cur_pos;
+    if (!limit_disable) {
+        csa.tc_pos = csa.cur_pos;
+        limit_disable = true;
+    }
 }
