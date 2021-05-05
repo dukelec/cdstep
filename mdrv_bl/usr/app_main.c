@@ -47,7 +47,7 @@ static void device_init(void)
 }
 
 
-#define APP_ADDR 0x08006800 // offset: 24KB
+#define APP_ADDR 0x08006000 // offset: 24KB
 
 static void jump_to_app(void)
 {
