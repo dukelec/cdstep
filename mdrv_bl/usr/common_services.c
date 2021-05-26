@@ -104,8 +104,8 @@ static void p5_service_routine(void)
             pkt->len = len + 1;
 
     } else {
-        list_put(&dft_ns.free_pkts, &pkt->node);
         d_warn("csa: wrong cmd, len: %d\n", pkt->len);
+        list_put(&dft_ns.free_pkts, &pkt->node);
         return;
     }
 
@@ -183,8 +183,8 @@ static void p8_service_routine(void)
         pkt->len = 3;
 #endif
     } else {
-        list_put(&dft_ns.free_pkts, &pkt->node);
         d_warn("nvm: wrong cmd, len: %d\n", pkt->len);
+        list_put(&dft_ns.free_pkts, &pkt->node);
         return;
     }
 
@@ -196,14 +196,18 @@ static void p8_service_routine(void)
 
 void common_service_init(void)
 {
-    cdn_sock_bind(&sock1);
-    cdn_sock_bind(&sock5);
     cdn_sock_bind(&sock8);
+    cdn_sock_bind(&sock5);
+    cdn_sock_bind(&sock1);
     init_info_str();
 }
 
 void common_service_routine(void)
 {
+    if (csa.save_conf) {
+        csa.save_conf = false;
+        save_conf();
+    }
     if (csa.do_reboot)
         NVIC_SystemReset();
 

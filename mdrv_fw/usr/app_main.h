@@ -50,6 +50,7 @@ typedef struct {
     cdctl_cfg_t     bus_cfg;
     bool            dbg_en;
     cdn_sockaddr_t  dbg_dst;
+    #define         _end_common qxchg_mcast
 
     regr_t          qxchg_mcast;     // for multicast
     regr_t          qxchg_set[5];
@@ -77,6 +78,7 @@ typedef struct {
     uint8_t         _reserved3[10];
 
     // end of flash
+    #define         _end_save state
 
     uint8_t         state;          // 0: drv not enable, 1: drv enable
     uint8_t         tc_state;       // t_curve: 0: stop, 1: run, 2: tailer

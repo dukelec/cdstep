@@ -77,16 +77,20 @@ csa_t csa;
 
 void load_conf(void)
 {
-    csa_t app_tmp;
-    memcpy(&app_tmp, (void *)APP_CONF_ADDR, offsetof(csa_t, state));
-    memset(&app_tmp.conf_from, 0, 4);
-    app_tmp.tc_pos = 0;
+    uint16_t magic_code = *(uint16_t *)APP_CONF_ADDR;
+    uint16_t conf_ver = *(uint16_t *)(APP_CONF_ADDR + 2);
+    csa = csa_dft;
 
-    if (app_tmp.magic_code == 0xcdcd && app_tmp.conf_ver == APP_CONF_VER) {
-        memcpy(&csa, &app_tmp, offsetof(csa_t, state));
+    if (magic_code == 0xcdcd && conf_ver == APP_CONF_VER) {
+        memcpy(&csa, (void *)APP_CONF_ADDR, offsetof(csa_t, _end_save));
         csa.conf_from = 1;
-    } else {
-        csa = csa_dft;
+    } else if (magic_code == 0xcdcd && (conf_ver >> 8) == (APP_CONF_VER >> 8)) {
+        memcpy(&csa, (void *)APP_CONF_ADDR, offsetof(csa_t, _end_common));
+        csa.conf_from = 2;
+    }
+    if (csa.conf_from) {
+        memset(&csa.do_reboot, 0, 3);
+        csa.tc_pos = 0;
     }
 }
 
@@ -109,7 +113,7 @@ int save_conf(void)
 
     uint64_t *dst_dat = (uint64_t *)APP_CONF_ADDR;
     uint64_t *src_dat = (uint64_t *)&csa;
-    int cnt = (offsetof(csa_t, state) + 7) / 8;
+    int cnt = (offsetof(csa_t, _end_save) + 7) / 8;
 
     for (int i = 0; ret == HAL_OK && i < cnt; i++)
         ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, (uint32_t)(dst_dat + i), *(src_dat + i));
@@ -197,9 +201,9 @@ void csa_list_show(void)
     CSA_SHOW(0, tc_speed_min, "Set the minimum speed");
     d_debug("\n"); debug_flush(true);
 
+    d_debug("   // --------------- Follows are not writable: -------------------\n");
     CSA_SHOW(0, state, "0: disable drive, 1: enable drive");
     d_debug("\n"); debug_flush(true);
-    d_debug("   // --------------- Follows are not writable: -------------------\n");
     CSA_SHOW(0, tc_state, "t_curve: 0: stop, 1: run, 2: tailer");
     CSA_SHOW(0, cur_pos, "Motor current position");
     CSA_SHOW(0, tc_vc, "Motor current speed");

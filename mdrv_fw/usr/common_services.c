@@ -53,9 +53,11 @@ static void p1_service_routine(void)
         pkt->len = strlen(info_str) + 1;
         pkt->dst = pkt->src;
         cdn_sock_sendto(&sock1, pkt);
+        csa.conf_from &= 0x7f;
         return;
     }
 
+    // mac address conflicts can be resolved by following:
     if (pkt->len >= 5 && pkt->dat[0] == 0x10) {
         uint16_t max_time = *(uint16_t *)(pkt->dat + 1);
         uint16_t wait_time = rand() / (RAND_MAX / max_time);
@@ -155,8 +157,8 @@ static void p8_service_routine(void)
         pkt->len = 3;
 */
     } else {
-        list_put(&dft_ns.free_pkts, &pkt->node);
         d_warn("nvm: wrong cmd, len: %d\n", pkt->len);
+        list_put(&dft_ns.free_pkts, &pkt->node);
         return;
     }
 
@@ -196,6 +198,11 @@ static void p5_service_routine(void)
     cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock5);
     if (!pkt)
         return;
+    if (csa.conf_from & 0x80) {
+        d_warn("csa: avoid cmd, len: %d\n", pkt->len);
+        list_put(&dft_ns.free_pkts, &pkt->node);
+        return;
+    }
 
     if (pkt->dat[0] == 0x00 && pkt->len == 4) {
         uint16_t offset = *(uint16_t *)(pkt->dat + 1);
@@ -254,8 +261,8 @@ static void p5_service_routine(void)
             pkt->len = len + 1;
 
     } else {
-        list_put(&dft_ns.free_pkts, &pkt->node);
         d_warn("csa: wrong cmd, len: %d\n", pkt->len);
+        list_put(&dft_ns.free_pkts, &pkt->node);
         return;
     }
 
@@ -346,8 +353,8 @@ static void p6_service_routine(void)
             pkt->dat[0] = 0x80 | ret_val;
 
     } else {
-        list_put(&dft_ns.free_pkts, &pkt->node);
         d_warn("qxchg: wrong cmd, len: %d\n", pkt->len);
+        list_put(&dft_ns.free_pkts, &pkt->node);
         return;
     }
 
@@ -370,7 +377,7 @@ void common_service_init(void)
 
 void common_service_routine(void)
 {
-    if (csa.save_conf && !(csa.conf_from & 0x80)) {
+    if (csa.save_conf) {
         csa.save_conf = false;
         save_conf();
     }

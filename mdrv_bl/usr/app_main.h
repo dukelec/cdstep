@@ -37,15 +37,20 @@ typedef struct {
 typedef struct {
     uint16_t        magic_code; // 0xcdcd
     uint16_t        conf_ver;
-    bool            conf_from;  // 0: default, 1: load from flash
+    uint8_t         conf_from;  // 0: default, 1: load from flash
     bool            do_reboot;
     bool            keep_in_bl;
-    uint8_t         _reserved;
+    bool            save_conf;
 
     uint8_t         bus_net;
     cdctl_cfg_t     bus_cfg;
     bool            dbg_en;
     cdn_sockaddr_t  dbg_dst;
+
+    uint8_t         _keep[512]; // covers the areas in the app csa that need to be saved
+    
+    // end of flash
+    uint8_t         _end_save;
 
 } csa_t; // config status area
 
@@ -54,6 +59,7 @@ extern const csa_t csa_dft;
 
 void app_main(void);
 void load_conf(void);
+int save_conf(void);
 
 void common_service_init(void);
 void common_service_routine(void);

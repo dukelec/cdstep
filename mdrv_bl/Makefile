@@ -67,7 +67,6 @@ cdnet/parser/cdnet_l0.c \
 cdnet/parser/cdnet_l1.c \
 cdnet/dev/cdctl.c \
 cdnet/utils/cd_list.c \
-cdnet/utils/rbtree.c \
 cdnet/utils/cd_debug.c \
 usr/config.c \
 usr/common_services.c \
