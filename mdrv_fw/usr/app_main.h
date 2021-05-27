@@ -20,7 +20,7 @@
 
 
 #define APP_CONF_ADDR       0x0801f800 // page 63, the last page
-#define APP_CONF_VER        0x0104
+#define APP_CONF_VER        0x0105
 
 #define FRAME_MAX           10
 #define PACKET_MAX          60
@@ -69,7 +69,10 @@ typedef struct {
     uint16_t        ref_volt;
     uint8_t         md_val;
     bool            set_home;
-    uint8_t         _reserved2[9];
+
+    uint16_t        lim_micro;
+    bool            lim_cali;
+    uint8_t         _reserved2[6];
 
     int32_t         tc_pos;
     uint32_t        tc_speed;

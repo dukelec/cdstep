@@ -86,14 +86,13 @@ void app_motor_init(void)
 
 void app_motor_routine(void)
 {
-    int s;
     uint32_t flags;
 
     if (csa.set_home) {
         // retain microstep to improve repetition accuracy
         local_irq_save(flags);
-        s = sign(csa.cur_pos);
-        csa.cur_pos = s * (abs(csa.cur_pos) & ((4 << csa.md_val) - 1));
+        uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
+        csa.cur_pos = micro & (2 << csa.md_val) ? micro - (4 << csa.md_val) : micro;
         csa.tc_pos = 0;
         local_irq_restore(flags);
         d_debug("after set home cur_pos: %d\n", csa.cur_pos);
@@ -103,8 +102,9 @@ void app_motor_routine(void)
 
     // disable motor driver reset microstep
     if (!csa.state && !csa.tc_state) {
-        s = sign(csa.cur_pos);
-        csa.cur_pos = s * (abs(csa.cur_pos) & ~((4 << csa.md_val) - 1));
+        uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
+        int delta = micro & (2 << csa.md_val) ? micro - (4 << csa.md_val) : micro;
+        csa.cur_pos -= delta;
     }
 
     if (!csa.tc_state)
@@ -182,15 +182,25 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void limit_det_isr(void)
 {
     d_debug("lim: detected, %d\n", limit_disable);
+    if (limit_disable)
+        return;
+    limit_disable = true;
 
     // It will go to different direction if tc_vc >= tc_speed_min.
 
     // To improve the repetition accuracy,
     // go to the closest microstep value triggered by the limit switch in the last calibration,
     // and then run the set_home command.
-
-    if (!limit_disable) {
+    if (!csa.lim_cali) {
+        csa.lim_micro = csa.cur_pos & ((4 << csa.md_val) - 1);
+        csa.lim_cali = true;
         csa.tc_pos = csa.cur_pos;
-        limit_disable = true;
+
+    } else {
+        uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
+        micro = micro >= csa.lim_micro ? micro : micro + (4 << csa.md_val);
+        int delta = micro - csa.lim_micro;
+        delta = delta & (2 << csa.md_val) ? delta - (4 << csa.md_val) : delta;
+        csa.tc_pos = csa.cur_pos - delta;
     }
 }

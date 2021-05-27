@@ -195,6 +195,11 @@ void csa_list_show(void)
     CSA_SHOW(0, ref_volt, "Motor driver reference voltage, unit: mV");
     CSA_SHOW(0, md_val, "Motor driver md[2:0] pin value");
     CSA_SHOW(0, set_home, "Write 1 set home position");
+
+    CSA_SHOW(1, lim_micro, "Microstep value for limit switch");
+    CSA_SHOW(0, lim_cali, "Whether lim_micro is valid");
+    d_debug("\n"); debug_flush(true);
+
     CSA_SHOW(0, tc_pos, "Set target position");
     CSA_SHOW(0, tc_speed, "Set target speed");
     CSA_SHOW(0, tc_accel, "Set target accel");
