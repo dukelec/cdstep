@@ -58,18 +58,18 @@ void set_led_state(led_state_t state)
 
     switch (state) {
     case LED_POWERON:
-        gpio_set_value(&led_r, 0);
-        gpio_set_value(&led_g, 1);
-        break;
-    case LED_WARN:
         gpio_set_value(&led_r, 1);
         gpio_set_value(&led_g, 0);
+        break;
+    case LED_WARN:
+        gpio_set_value(&led_r, 0);
+        gpio_set_value(&led_g, 1);
         break;
     default:
     case LED_ERROR:
         is_err = true;
-        gpio_set_value(&led_r, 1);
-        gpio_set_value(&led_g, 1);
+        gpio_set_value(&led_r, 0);
+        gpio_set_value(&led_g, 0);
         break;
     }
 }
@@ -147,7 +147,7 @@ void app_main(void)
 }
 
 
-void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == r_int.num) {
         cdctl_int_isr(&r_dev);

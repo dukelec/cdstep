@@ -54,18 +54,18 @@ static void jump_to_app(void)
     uint32_t stack = *(uint32_t*)APP_ADDR;
     uint32_t func = *(uint32_t*)(APP_ADDR + 4);
 
-    gpio_set_value(&led_r, 0);
-    gpio_set_value(&led_g, 0);
+    gpio_set_value(&led_r, 1);
+    gpio_set_value(&led_g, 1);
     printf("jump to app...\n");
     while (!__HAL_UART_GET_FLAG(debug_uart.huart, UART_FLAG_TC));
-    HAL_UART_DeInit(debug_uart.huart);
-    HAL_SPI_DeInit(r_spi.hspi);
-    HAL_RCC_DeInit();
+    //HAL_UART_DeInit(debug_uart.huart);
+    //HAL_SPI_DeInit(r_spi.hspi);
+    //HAL_RCC_DeInit();
 
     // NOTE: change app's SCB->VTOR in app's system_stm32fxxx.c
     //for(int i = 0; i < 256; i++)
     //    HAL_NVIC_DisableIRQ(i);
-    HAL_NVIC_DisableIRQ(SysTick_IRQn);
+    //HAL_NVIC_DisableIRQ(SysTick_IRQn);
     __set_MSP(stack); // init stack pointer
     ((void(*)()) func)();
 }
