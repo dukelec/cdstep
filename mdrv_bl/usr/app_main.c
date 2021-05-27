@@ -9,17 +9,17 @@
 
 #include "app_main.h"
 
-extern SPI_HandleTypeDef hspi1;
-extern UART_HandleTypeDef huart1;
+extern SPI_HandleTypeDef hspi2;
+extern UART_HandleTypeDef huart2;
 
 gpio_t led_r = { .group = LED_R_GPIO_Port, .num = LED_R_Pin };
 gpio_t led_g = { .group = LED_G_GPIO_Port, .num = LED_G_Pin };
 
-uart_t debug_uart = { .huart = &huart1 };
+uart_t debug_uart = { .huart = &huart2 };
 
 static gpio_t r_rst = { .group = CD_RST_GPIO_Port, .num = CD_RST_Pin };
 static gpio_t r_cs = { .group = CD_CS_GPIO_Port, .num = CD_CS_Pin };
-static spi_t r_spi = { .hspi = &hspi1, .ns_pin = &r_cs };
+static spi_t r_spi = { .hspi = &hspi2, .ns_pin = &r_cs };
 
 static cd_frame_t frame_alloc[FRAME_MAX];
 list_head_t frame_free_head = {0};

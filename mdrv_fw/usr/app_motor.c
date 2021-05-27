@@ -11,7 +11,8 @@
 #include "app_main.h"
 
 extern TIM_HandleTypeDef htim1;
-extern DAC_HandleTypeDef hdac1;
+extern TIM_HandleTypeDef htim2;
+//extern DAC_HandleTypeDef hdac1;
 
 static gpio_t drv_en = { .group = DRV_EN_GPIO_Port, .num = DRV_EN_Pin };
 static gpio_t drv_md1 = { .group = DRV_MD1_GPIO_Port, .num = DRV_MD1_Pin };
@@ -19,7 +20,7 @@ static gpio_t drv_md2 = { .group = DRV_MD2_GPIO_Port, .num = DRV_MD2_Pin };
 static gpio_t drv_md3 = { .group = DRV_MD3_GPIO_Port, .num = DRV_MD3_Pin };
 static gpio_t drv_step = { .group = DRV_STEP_GPIO_Port, .num = DRV_STEP_Pin };
 static gpio_t drv_dir = { .group = DRV_DIR_GPIO_Port, .num = DRV_DIR_Pin };
-static gpio_t drv_mo = { .group = DRV_MO_GPIO_Port, .num = DRV_MO_Pin };
+//static gpio_t drv_mo = { .group = DRV_MO_GPIO_Port, .num = DRV_MO_Pin };
 static bool limit_disable = false;
 
 
@@ -63,7 +64,8 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 {
     d_debug("set reference voltage: %d mv\n", csa.ref_volt);
-    HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, (csa.ref_volt / 1000.0f) * 0x0fff / 3.3f);
+    //HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, (csa.ref_volt / 1000.0f) * 0x0fff / 3.3f);
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, (csa.ref_volt / 1000.0f) * 1000 / 3.3f);
     return 0;
 }
 
@@ -72,8 +74,10 @@ void app_motor_init(void)
 {
     set_led_state(LED_POWERON);
 
-    HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
-    HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, (csa.ref_volt / 1000.0f) * 0x0fff / 3.3f);
+    //HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
+    //HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, (csa.ref_volt / 1000.0f) * 0x0fff / 3.3f);
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_2, (csa.ref_volt / 1000.0f) * 1000 / 3.3f);
+    HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
 
     gpio_set_value(&drv_md1, csa.md_val & 1);
     gpio_set_value(&drv_md2, csa.md_val & 2);
@@ -119,12 +123,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     gpio_set_value(&drv_step, 1);
     gpio_set_value(&drv_step, 0);
 
+#if 0
     // microstep accuracy checking
     bool mo_val = gpio_get_value(&drv_mo);
     if (mo_val == 0) {
         if ((csa.cur_pos & ((4 << csa.md_val) - 1)) != 0)
             d_warn("mo @%d\n", csa.cur_pos);
     }
+#endif
 
     if (csa.cur_pos == csa.tc_pos && lroundf(fabsf(csa.tc_vc)) <= csa.tc_speed_min) {
         d_debug("tim: arrive pos %d, period: %d.%.2d\n",  csa.tc_pos,  P_2F(csa.tc_vc));

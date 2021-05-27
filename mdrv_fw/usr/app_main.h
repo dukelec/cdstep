@@ -19,11 +19,11 @@
 #define P_3F(x) (int)(x), abs(((x)-(int)(x))*1000) // "%d.%.3d"
 
 
-#define APP_CONF_ADDR       0x0801f800 // page 63, the last page
+#define APP_CONF_ADDR       0x0800fc00 // last 1k page
 #define APP_CONF_VER        0x0105
 
 #define FRAME_MAX           10
-#define PACKET_MAX          60
+#define PACKET_MAX          30
 
 
 typedef enum {
