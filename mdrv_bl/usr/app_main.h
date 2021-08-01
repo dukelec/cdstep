@@ -57,6 +57,9 @@ typedef struct {
 extern csa_t csa;
 extern const csa_t csa_dft;
 
+int flash_erase(uint32_t addr, uint32_t len);
+int flash_write(uint32_t addr, uint32_t len, const uint8_t *buf);
+
 void app_main(void);
 void load_conf(void);
 int save_conf(void);

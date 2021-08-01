@@ -68,6 +68,7 @@ static void jump_to_app(void)
     HAL_NVIC_DisableIRQ(SysTick_IRQn);
     __set_MSP(stack); // init stack pointer
     ((void(*)()) func)();
+    while (true);
 }
 
 

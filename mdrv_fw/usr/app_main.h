@@ -116,6 +116,8 @@ extern int csa_w_hook_num;
 extern csa_hook_t csa_r_hook[];
 extern int csa_r_hook_num;
 
+int flash_erase(uint32_t addr, uint32_t len);
+int flash_write(uint32_t addr, uint32_t len, const uint8_t *buf);
 
 void app_main(void);
 void load_conf(void);

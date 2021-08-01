@@ -23,7 +23,7 @@ GIT_VERSION := $(shell git describe --dirty --always --tags)
 # debug build?
 DEBUG = 1
 # optimization
-OPT = -Og
+OPT = -Os
 
 
 #######################################
