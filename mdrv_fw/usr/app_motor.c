@@ -139,24 +139,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         return;
     }
 
-    if (csa.tc_pos != csa.cur_pos && sign(csa.tc_pos - csa.cur_pos) != sign(csa.tc_vc)) { // different direction
-        csa.tc_ac = 0; // force tc_ac < tc_accel
-        csa.tc_state = 1;
-
-    } else {
-        csa.tc_ac = sign(csa.tc_pos - csa.cur_pos) * csa.tc_accel;
-
-        if (csa.tc_pos != csa.cur_pos)
-            csa.tc_ac = ((/* tc_ve + */ csa.tc_vc) / 2.0f) * (/* tc_ve */ - csa.tc_vc) / (csa.tc_pos - csa.cur_pos);
-
-        // Slightly more than allowed, such as 1.2 times.
-        csa.tc_ac = sign(csa.tc_ac) * min(fabsf(csa.tc_ac), (float)csa.tc_accel * 1.2f);
-    }
+    csa.tc_ac = sign(csa.tc_pos - csa.cur_pos) * csa.tc_accel;
+    if (csa.tc_pos != csa.cur_pos)
+        csa.tc_ac = ((/* tc_ve + */ csa.tc_vc) / 2.0f) * (/* tc_ve */ - csa.tc_vc) / (csa.tc_pos - csa.cur_pos);
+    // Slightly more than allowed, such as 1.2 times.
+    csa.tc_ac = sign(csa.tc_ac) * min(fabsf(csa.tc_ac), (float)csa.tc_accel * 1.2f);
 
     if (fabsf(csa.tc_ac) < csa.tc_accel) {
         if (csa.tc_state == 1) {
             float delta_v = csa.tc_accel / max((float)csa.tc_speed_min, fabsf(csa.tc_vc));
-
             csa.tc_vc += sign(csa.tc_pos - csa.cur_pos) * delta_v;
             csa.tc_vc = clip(csa.tc_vc, -(float)csa.tc_speed, (float)csa.tc_speed);
         }
