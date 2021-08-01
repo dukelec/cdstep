@@ -127,21 +127,20 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             d_warn("mo @%d\n", csa.cur_pos);
     }
 
-    if (csa.cur_pos == csa.tc_pos && lroundf(fabsf(csa.tc_vc)) <= csa.tc_speed_min) {
+    if (csa.cur_pos == csa.tc_pos && fabsf(csa.tc_vc) <= (float)csa.tc_speed_min * 1.2f) {
+        __HAL_TIM_DISABLE(&htim1);
+        __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
         d_debug("tim: arrive pos %d, period: %d.%.2d\n",  csa.tc_pos,  P_2F(csa.tc_vc));
         csa.tc_state = 0;
         csa.tc_vc = 0;
         csa.tc_ac = 0;
         raw_dbg(0);
         csa.time_cnt += 10000;
-        __HAL_TIM_DISABLE(&htim1);
         return;
     }
 
-    if (csa.tc_pos != csa.cur_pos && lroundf(fabsf(csa.tc_vc)) > csa.tc_speed_min
-            && sign(csa.tc_pos - csa.cur_pos) != sign(csa.tc_vc)) { // different direction
-
-        csa.tc_ac = sign(csa.tc_pos - csa.cur_pos) * min((float)csa.tc_accel, fabsf(csa.tc_vc));
+    if (csa.tc_pos != csa.cur_pos && sign(csa.tc_pos - csa.cur_pos) != sign(csa.tc_vc)) { // different direction
+        csa.tc_ac = 0; // force tc_ac < tc_accel
         csa.tc_state = 1;
 
     } else {
@@ -150,8 +149,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         if (csa.tc_pos != csa.cur_pos)
             csa.tc_ac = ((/* tc_ve + */ csa.tc_vc) / 2.0f) * (/* tc_ve */ - csa.tc_vc) / (csa.tc_pos - csa.cur_pos);
 
-        // Slightly more than allowed, such as 1.1 times.
-        csa.tc_ac = sign(csa.tc_ac) * min(fabsf(csa.tc_ac), (float)csa.tc_accel * 1.1f);
+        // Slightly more than allowed, such as 1.2 times.
+        csa.tc_ac = sign(csa.tc_ac) * min(fabsf(csa.tc_ac), (float)csa.tc_accel * 1.2f);
     }
 
     if (fabsf(csa.tc_ac) < csa.tc_accel) {
@@ -174,7 +173,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     int tim_val = abs(lroundf(1000000 / csa.tc_vc));
 
     gpio_set_value(&drv_dir, csa.tc_vc >= 0); // 0: -, 1: +
-    __HAL_TIM_SET_AUTORELOAD(&htim1, tim_val);
+    __HAL_TIM_SET_AUTORELOAD(&htim1, tim_val); // too quick may block main loop
 
     raw_dbg(0);
     csa.time_cnt += tim_val;
