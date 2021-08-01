@@ -44,6 +44,7 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
         csa.tc_state = 1;
 
         __HAL_TIM_SET_AUTORELOAD(&htim1, tim_val);
+        __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
         __HAL_TIM_ENABLE(&htim1);
     } else {
         local_irq_restore(flags);
@@ -133,6 +134,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         csa.tc_ac = 0;
         raw_dbg(0);
         csa.time_cnt += 10000;
+        __HAL_TIM_DISABLE(&htim1);
         return;
     }
 
@@ -173,7 +175,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     gpio_set_value(&drv_dir, csa.tc_vc >= 0); // 0: -, 1: +
     __HAL_TIM_SET_AUTORELOAD(&htim1, tim_val);
-    __HAL_TIM_ENABLE(&htim1);
 
     raw_dbg(0);
     csa.time_cnt += tim_val;
