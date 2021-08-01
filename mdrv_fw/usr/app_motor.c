@@ -30,8 +30,10 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
     gpio_set_value(&drv_en, csa.state);
 
     local_irq_save(flags);
-    if (csa.state && csa.tc_state == 2)
+    if (csa.state && csa.tc_state == 2) {
         csa.tc_state = 1;
+        csa.tc_no_overrun = false;
+    }
 
     if (csa.state && !csa.tc_state && csa.tc_pos != csa.cur_pos) {
         local_irq_restore(flags);
@@ -42,6 +44,7 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 
         gpio_set_value(&drv_dir, csa.tc_pos >= csa.cur_pos); // 0: -, 1: +
         csa.tc_state = 1;
+        csa.tc_no_overrun = false;
 
         __HAL_TIM_SET_AUTORELOAD(&htim1, tim_val);
         __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
@@ -127,16 +130,22 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             d_warn("mo @%d\n", csa.cur_pos);
     }
 
-    if (csa.cur_pos == csa.tc_pos && fabsf(csa.tc_vc) <= (float)csa.tc_speed_min * 1.2f) {
-        __HAL_TIM_DISABLE(&htim1);
-        __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
-        d_debug("tim: arrive pos %d, period: %d.%.2d\n",  csa.tc_pos,  P_2F(csa.tc_vc));
-        csa.tc_state = 0;
-        csa.tc_vc = 0;
-        csa.tc_ac = 0;
-        raw_dbg(0);
-        csa.time_cnt += 10000;
-        return;
+    if (csa.cur_pos == csa.tc_pos) {
+        if (csa.tc_no_overrun) {
+            __HAL_TIM_DISABLE(&htim1);
+            __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
+            d_debug("tim: arrive pos %d, period: %d.%.2d\n",  csa.tc_pos,  P_2F(csa.tc_vc));
+            csa.tc_state = 0;
+            csa.tc_no_overrun = false;
+            csa.tc_vc = 0;
+            csa.tc_ac = 0;
+            raw_dbg(0);
+            csa.time_cnt += 10000;
+            return;
+        } else {
+            csa.tc_state = 1;
+            csa.tc_no_overrun = true;
+        }
     }
 
     csa.tc_ac = sign(csa.tc_pos - csa.cur_pos) * csa.tc_accel;
@@ -150,6 +159,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
             float delta_v = csa.tc_accel / max((float)csa.tc_speed_min, fabsf(csa.tc_vc));
             csa.tc_vc += sign(csa.tc_pos - csa.cur_pos) * delta_v;
             csa.tc_vc = clip(csa.tc_vc, -(float)csa.tc_speed, (float)csa.tc_speed);
+            csa.tc_no_overrun = true;
         }
     } else {
         float delta_v = csa.tc_ac / max((float)csa.tc_speed_min, fabsf(csa.tc_vc));
