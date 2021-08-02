@@ -87,6 +87,7 @@ void load_conf(void)
     } else if (magic_code == 0xcdcd && (conf_ver >> 8) == (APP_CONF_VER >> 8)) {
         memcpy(&csa, (void *)APP_CONF_ADDR, offsetof(csa_t, _end_common));
         csa.conf_from = 2;
+        csa.conf_ver = APP_CONF_VER;
     }
     if (csa.conf_from) {
         memset(&csa.do_reboot, 0, 3);
@@ -180,7 +181,7 @@ void csa_list_show(void)
 
     CSA_SHOW(1, magic_code, "Magic code: 0xcdcd");
     CSA_SHOW(1, conf_ver, "Config version");
-    CSA_SHOW(1, conf_from, "0: default config, 1: load from flash");
+    CSA_SHOW(1, conf_from, "0: default config, 1: all from flash, 2: partly from flash");
     CSA_SHOW(0, do_reboot, "Write 1 to reboot");
     CSA_SHOW(0, save_conf, "Write 1 to save current config to flash");
     d_debug("\n"); debug_flush(true);
@@ -228,9 +229,10 @@ void csa_list_show(void)
     CSA_SHOW(0, tc_speed_min, "Set the minimum speed");
     d_debug("\n"); debug_flush(true);
 
-    d_debug("   // --------------- Follows are not writable: -------------------\n");
     CSA_SHOW(0, state, "0: disable drive, 1: enable drive");
     d_debug("\n"); debug_flush(true);
+
+    d_debug("   // --------------- Follows are not writable: -------------------\n");
     CSA_SHOW(0, tc_state, "t_curve: 0: stop, 1: run, 2: tailer");
     CSA_SHOW(0, cur_pos, "Motor current position");
     CSA_SHOW(0, tc_vc, "Motor current speed");
