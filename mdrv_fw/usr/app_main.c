@@ -27,7 +27,7 @@ static gpio_t r_cs = { .group = CD_CS_GPIO_Port, .num = CD_CS_Pin };
 static spi_t r_spi = { .hspi = &hspi1, .ns_pin = &r_cs };
 
 static gpio_t sen_int = { .group = SEN_INT_GPIO_Port, .num = SEN_INT_Pin }; // position limit
-static gpio_t sen_clk = { .group = SEN_CLK_GPIO_Port, .num = SEN_CLK_Pin };
+static gpio_t sen_clk = { .group = SEN_SCK_GPIO_Port, .num = SEN_SCK_Pin };
 static gpio_t sen_sdo = { .group = SEN_SDO_GPIO_Port, .num = SEN_SDO_Pin };
 
 static cd_frame_t frame_alloc[FRAME_MAX];
@@ -142,6 +142,8 @@ static int read_force(void)
     return ret_val;
 }
 
+static cdn_sock_t sock_force_rpt = { .port = 0xb, .ns = &dft_ns, .tx_only = true };
+
 void app_main(void)
 {
     printf("\nstart app_main (mdrv-step)...\n");
@@ -156,13 +158,26 @@ void app_main(void)
     d_info("\x1b[92mColor Test\x1b[0m and \x1b[93mAnother Color\x1b[0m...\n");
     csa_list_show();
     app_motor_init();
+    cdn_sock_bind(&sock_force_rpt);
 
     while (true) {
         stack_check();
 
         if (!gpio_get_value(&sen_sdo)) {
             int force = read_force();
-            d_info("read force: %d\n", force);
+            if (csa.force_rpt_en) {
+                cdn_pkt_t *pkt = cdn_pkt_get(&dft_ns.free_pkts);
+                if (pkt) {
+                    cdn_init_pkt(pkt);
+                    pkt->dst = csa.force_rpt_dst;
+                    pkt->dat[0] = 0x40;
+                    pkt->len = 5;
+                    memcpy(pkt->dat + 1, &force, 4);
+                    cdn_sock_sendto(&sock_force_rpt, pkt);
+
+                    d_verbose("rpt force: %d\n", force);
+                }
+            }
         }
 
         //dump_hw_status();
