@@ -88,8 +88,7 @@ typedef struct {
     int             cur_pos;
     float           tc_vc;
     float           tc_ac;
-    bool            tc_no_overrun;
-    uint8_t         _reserved4[9];
+    uint8_t         _reserved4[10];
 
     uint32_t        time_cnt;
     char            string_test[10]; // for cdbus_gui tool test
