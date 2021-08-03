@@ -121,6 +121,9 @@ static void dump_hw_status(void)
 }
 #endif
 
+static cdn_sock_t sock_force_rx = { .port = 0x0b, .ns = &dft_ns };
+
+
 void app_main(void)
 {
     printf("\nstart app_main (mdrv-step)...\n");
@@ -135,9 +138,24 @@ void app_main(void)
     d_info("\x1b[92mColor Test\x1b[0m and \x1b[93mAnother Color\x1b[0m...\n");
     csa_list_show();
     app_motor_init();
+    cdn_sock_bind(&sock_force_rx);
+    uint32_t t_force = 0;
 
     while (true) {
         stack_check();
+
+        cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock_force_rx);
+        if (pkt) {
+            int force = *(int32_t *)(pkt->dat + 1);
+            list_put(&dft_ns.free_pkts, &pkt->node);
+            t_force = get_systick();
+            d_debug("force rx: %d, t: %d\n", force, t_force);
+        }
+        if (csa.state && get_systick() - t_force > 400) {
+            csa.state = 0;
+            motor_w_hook(0, 0, NULL);
+        }
+
         //dump_hw_status();
         app_motor_routine();
         cdn_routine(&dft_ns); // handle cdnet
