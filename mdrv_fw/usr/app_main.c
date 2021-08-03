@@ -27,6 +27,8 @@ static gpio_t r_cs = { .group = CD_CS_GPIO_Port, .num = CD_CS_Pin };
 static spi_t r_spi = { .hspi = &hspi1, .ns_pin = &r_cs };
 
 static gpio_t sen_int = { .group = SEN_INT_GPIO_Port, .num = SEN_INT_Pin }; // position limit
+static gpio_t sen_clk = { .group = SEN_CLK_GPIO_Port, .num = SEN_CLK_Pin };
+static gpio_t sen_sdo = { .group = SEN_SDO_GPIO_Port, .num = SEN_SDO_Pin };
 
 static cd_frame_t frame_alloc[FRAME_MAX];
 list_head_t frame_free_head = {0};
@@ -121,6 +123,25 @@ static void dump_hw_status(void)
 }
 #endif
 
+static int read_force(void)
+{
+    int ret_val = 0;
+    //while (gpio_get_value(&sen_sdi));
+
+    for (int i = 0; i < 24; i++) {
+        gpio_set_value(&sen_clk, 1);
+        gpio_set_value(&sen_clk, 0);
+        ret_val = (ret_val << 1) | gpio_get_value(&sen_sdo);
+    }
+
+    gpio_set_value(&sen_clk, 1);
+    gpio_set_value(&sen_clk, 0);
+
+    if (ret_val & 0x800000)
+        ret_val |= 0xff000000;
+    return ret_val;
+}
+
 void app_main(void)
 {
     printf("\nstart app_main (mdrv-step)...\n");
@@ -138,6 +159,12 @@ void app_main(void)
 
     while (true) {
         stack_check();
+
+        if (!gpio_get_value(&sen_sdo)) {
+            int force = read_force();
+            d_info("read force: %d\n", force);
+        }
+
         //dump_hw_status();
         app_motor_routine();
         cdn_routine(&dft_ns); // handle cdnet
