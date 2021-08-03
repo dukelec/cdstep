@@ -22,6 +22,7 @@ static gpio_t drv_md3 = { .group = DRV_MD3_GPIO_Port, .num = DRV_MD3_Pin };
 static gpio_t drv_dir = { .group = DRV_DIR_GPIO_Port, .num = DRV_DIR_Pin };
 static gpio_t drv_mo = { .group = DRV_MO_GPIO_Port, .num = DRV_MO_Pin };
 static bool limit_disable = false;
+static int force_ofs = 0;
 
 static int32_t pos_at_cnt0 = 0; // backup cur_pos at start
 static bool is_last_0 = false;  // for set_pwm
@@ -86,7 +87,8 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
     if (csa.state && !csa.tc_state && csa.tc_pos != csa.cal_pos) {
         local_irq_restore(flags);
 
-        d_debug("run motor ...\n");
+        force_ofs = force_rx;
+        d_debug("run motor ..., force_ofs: %d, trg: %d\n", force_ofs, csa.force_trigger_en);
         csa.tc_state = 1;
 
         //__HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
@@ -117,6 +119,7 @@ uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 void app_motor_init(void)
 {
     set_led_state(LED_POWERON);
+    csa.force_trigger_en = false;
 
     HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
     HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, (csa.ref_volt / 1000.0f) * 0x0fff / 3.3f);
@@ -232,6 +235,8 @@ static inline void t_curve_compute(void)
             csa.tc_state = 0;
             csa.tc_vc = 0;
             csa.tc_ac = 0;
+            d_debug("tc: arrive pos %d, trg %d\n", csa.tc_pos, csa.force_trigger_en);
+            csa.force_trigger_en = false;
         }
     } else {
         csa.cal_pos = p32i;
@@ -251,6 +256,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     } else {
         int counter_dir = gpio_get_value(&drv_dir) ? 1 : -1;
         csa.cur_pos = pos_at_cnt0 + __HAL_TIM_GET_COUNTER(&htim2) * counter_dir;
+
+        if (csa.tc_state && csa.force_trigger_en && force_rx - force_ofs <= -csa.force_threshold) {
+            csa.force_trigger_en = false;
+            csa.tc_pos = csa.cur_pos;
+            csa.tc_state = 1;
+            d_debug("force trg @ %d\n", csa.cur_pos);
+        }
 
         t_curve_compute();
         pid_i_set_target(&csa.pid_pos, csa.cal_pos);

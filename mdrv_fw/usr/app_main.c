@@ -121,8 +121,8 @@ static void dump_hw_status(void)
 }
 #endif
 
+int force_rx = 0;
 static cdn_sock_t sock_force_rx = { .port = 0x0b, .ns = &dft_ns };
-
 
 void app_main(void)
 {
@@ -146,10 +146,10 @@ void app_main(void)
 
         cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock_force_rx);
         if (pkt) {
-            int force = *(int32_t *)(pkt->dat + 1);
+            force_rx = *(int32_t *)(pkt->dat + 1);
             list_put(&dft_ns.free_pkts, &pkt->node);
             t_force = get_systick();
-            d_debug("force rx: %d, t: %d\n", force, t_force);
+            d_verbose("force rx: %d, t: %d\n", force_rx, t_force);
         }
         if (csa.state && get_systick() - t_force > 400) {
             csa.state = 0;
