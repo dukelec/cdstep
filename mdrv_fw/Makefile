@@ -75,6 +75,7 @@ usr/config.c \
 usr/common_services.c \
 usr/app_main.c \
 usr/app_motor.c \
+usr/pid_i.c \
 usr/raw_dbg.c
 
 # ASM sources

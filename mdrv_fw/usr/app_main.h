@@ -14,6 +14,7 @@
 #include "cd_debug.h"
 #include "cdbus_uart.h"
 #include "cdctl_it.h"
+#include "pid_i.h"
 
 #define P_2F(x) (int)(x), abs(((x)-(int)(x))*100)  // "%d.%.2d"
 #define P_3F(x) (int)(x), abs(((x)-(int)(x))*1000) // "%d.%.3d"
@@ -24,6 +25,8 @@
 
 #define FRAME_MAX           10
 #define PACKET_MAX          60
+
+#define LOOP_FREQ   (64000000 / 64 / 200) // 5 KHz
 
 
 typedef enum {
@@ -92,6 +95,11 @@ typedef struct {
 
     uint32_t        time_cnt;
     char            string_test[10]; // for cdbus_gui tool test
+
+
+    pid_i_t         pid_pos; ////
+    int32_t         cal_pos;
+    float           cal_speed;
 
 } csa_t; // config status area
 

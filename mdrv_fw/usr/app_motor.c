@@ -23,18 +23,31 @@ static gpio_t drv_dir = { .group = DRV_DIR_GPIO_Port, .num = DRV_DIR_Pin };
 static gpio_t drv_mo = { .group = DRV_MO_GPIO_Port, .num = DRV_MO_Pin };
 static bool limit_disable = false;
 
-#define LOOP_FREQ   (64000000 / 64 / 200) // 5 KHz
-
 static int32_t pos_at_cnt0 = 0; // backup cur_pos at start
 
 
+static void microstep_acc_chk(void)
+{
+    // microstep accuracy checking
+    bool mo_val = gpio_get_value(&drv_mo);
+    if (mo_val == 0) {
+        if ((csa.cur_pos & ((4 << csa.md_val) - 1)) != 0)
+            d_warn("mo @%d\n", csa.cur_pos);
+    }
+}
+
 static void set_pwm(int value)
 {
+    static bool is_last_0 = false;
     if (value == 0) {
-        __HAL_TIM_SET_AUTORELOAD(&htim3, 0);
-        gpio_set_value(&drv_dir, (value >= 0));
-        __HAL_TIM_SET_COUNTER(&htim2, 0);
-        pos_at_cnt0 = csa.cur_pos;
+        if (!is_last_0) {
+            __HAL_TIM_SET_AUTORELOAD(&htim3, 0);
+            gpio_set_value(&drv_dir, (value >= 0));
+            __HAL_TIM_SET_COUNTER(&htim2, 0);
+            pos_at_cnt0 = csa.cur_pos;
+            microstep_acc_chk();
+        }
+        is_last_0 = true;
         return;
     }
     if (gpio_get_value(&drv_dir) != (value >= 0)) {
@@ -44,6 +57,7 @@ static void set_pwm(int value)
         pos_at_cnt0 = csa.cur_pos;
     }
     __HAL_TIM_SET_AUTORELOAD(&htim3, clip(abs(value), 16*2-1, 65535));
+    is_last_0 = false;
 }
 
 uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
@@ -56,12 +70,10 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
     if (csa.state && csa.tc_state == 2)
         csa.tc_state = 1;
 
-    if (csa.state && !csa.tc_state && csa.tc_pos != csa.cur_pos) {
+    if (csa.state && !csa.tc_state && csa.tc_pos != csa.cal_pos) {
         local_irq_restore(flags);
 
         d_debug("run motor ...\n");
-        pos_at_cnt0 = csa.cur_pos;
-        csa.tc_vc = csa.tc_ac = 0;
         csa.tc_state = 1;
 
         //__HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
@@ -102,6 +114,7 @@ void app_motor_init(void)
     gpio_set_value(&drv_md2, csa.md_val & 2);
     gpio_set_value(&drv_md3, csa.md_val & 4);
     gpio_set_value(&drv_en, csa.state);
+    pid_i_init(&csa.pid_pos, true);
 
     __HAL_TIM_ENABLE(&htim1);
     __HAL_TIM_ENABLE(&htim2);
@@ -146,40 +159,23 @@ void app_motor_routine(void)
 }
 
 
-static void microstep_acc_chk(void)
+static inline void t_curve_compute(void)
 {
-    // microstep accuracy checking
-    bool mo_val = gpio_get_value(&drv_mo);
-    if (mo_val == 0) {
-        if ((csa.cur_pos & ((4 << csa.md_val) - 1)) != 0)
-            d_warn("mo @%d\n", csa.cur_pos);
-    }
-}
+    static double p64f = (double)INFINITY;
 
-
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-    if (!csa.tc_state)
-        goto exit;
-
-    int counter_dir = gpio_get_value(&drv_dir) ? 1 : -1;
-    csa.cur_pos = pos_at_cnt0 + __HAL_TIM_GET_COUNTER(&htim2) * counter_dir;
     float v_step = (float)csa.tc_accel / (float)LOOP_FREQ;
     float v_stop = v_step * 1.2f;
 
-    if (csa.cur_pos == csa.tc_pos && fabsf(csa.tc_vc) <= v_stop) {
-        //__HAL_TIM_DISABLE(&htim1);
-        //__HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
-        set_pwm(0);
-        d_debug("tim: arrive pos %d, period: %d.%.2d\n",  csa.tc_pos,  P_2F(csa.tc_vc));
-        csa.tc_state = 0;
+    if (!csa.tc_state) {
         csa.tc_vc = 0;
         csa.tc_ac = 0;
-        microstep_acc_chk();
-        goto exit;
+        p64f = (double)INFINITY;
+        return;
+    } else if (p64f == (double)INFINITY) {
+        p64f = csa.cal_pos;
     }
 
-    int direction = sign(csa.tc_pos - csa.cur_pos);
+    int direction = sign(csa.tc_pos - csa.cal_pos);
     if (direction == 0) {
         direction = -sign(csa.tc_vc);
         csa.tc_state = 3;
@@ -189,7 +185,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
     // slightly more than allowed, such as 1.2 times
     if (csa.tc_state != 3) {
-        csa.tc_ac = ((/* tc_ve + */ csa.tc_vc) / 2.0f) * (/* tc_ve */ - csa.tc_vc) / (csa.tc_pos - csa.cur_pos);
+        csa.tc_ac = ((/* tc_ve + */ csa.tc_vc) / 2.0f) * (/* tc_ve */ - csa.tc_vc) / (csa.tc_pos - csa.cal_pos);
         csa.tc_ac = min(fabsf(csa.tc_ac), (float)csa.tc_accel * 1.2f);
 
     } else {
@@ -209,14 +205,53 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         csa.tc_vc += -sign(csa.tc_vc) * delta_v;
     }
 
-    if (fabsf(csa.tc_vc) < v_step)
-        csa.tc_vc = direction * v_step;
+    float dt_pos = csa.tc_vc / (float)LOOP_FREQ;
+    if (fabsf(dt_pos) < min(v_step, 1.0f))
+        dt_pos = direction * min(v_step, 1.0f);
+    p64f += (double)dt_pos;
+    int32_t p32i = lround(p64f);
 
-    // tc_vc: step / sec; tim3 unit: 1 / 64000000Hz
-    int tim_val = lroundf(64000000 / csa.tc_vc);
-    set_pwm(tim_val);
+    if (fabsf(csa.tc_vc) <= v_step * 4.4f) { // avoid exceeding
+        csa.cal_pos = (csa.tc_pos >= csa.cal_pos) ? min(p32i, csa.tc_pos) : max(p32i, csa.tc_pos);
+        if (csa.cal_pos == csa.tc_pos) {
+            csa.tc_state = 0;
+            csa.tc_vc = 0;
+            csa.tc_ac = 0;
+        }
+    } else {
+        csa.cal_pos = p32i;
+    }
 
-exit:
+}
+
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+
+    if (!csa.state) {
+        pid_i_reset(&csa.pid_pos, csa.cur_pos, 0);
+        pid_i_set_target(&csa.pid_pos, csa.cur_pos);
+        csa.cal_pos = csa.cur_pos;
+        csa.cal_speed = 0;
+
+    } else {
+
+        int counter_dir = gpio_get_value(&drv_dir) ? 1 : -1;
+        csa.cur_pos = pos_at_cnt0 + __HAL_TIM_GET_COUNTER(&htim2) * counter_dir;
+
+        t_curve_compute();
+        pid_i_set_target(&csa.pid_pos, csa.cal_pos);
+        csa.cal_speed = pid_i_compute(&csa.pid_pos, csa.cur_pos);
+
+        if (fabsf(csa.cal_speed) < (float)csa.tc_accel / (float)LOOP_FREQ) {
+            set_pwm(0);
+        } else {
+            // tc_vc: step / sec; tim3 unit: 1 / 64000000Hz
+            int tim_val = lroundf(64000000 / csa.cal_speed);
+            set_pwm(tim_val);
+        }
+    }
+
     raw_dbg(0);
     csa.time_cnt++;
 }
