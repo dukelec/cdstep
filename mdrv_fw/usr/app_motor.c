@@ -42,6 +42,7 @@ static void set_pwm(int value)
 {
     if (value == 0) {
         if (!is_last_0) {
+            __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
             __HAL_TIM_SET_AUTORELOAD(&htim3, 0);
             __HAL_TIM_SET_PRESCALER(&htim3, 4-1);
             gpio_set_value(&drv_dir, (value >= 0));
@@ -53,16 +54,22 @@ static void set_pwm(int value)
         return;
     }
     if (gpio_get_value(&drv_dir) != (value >= 0)) {
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
         __HAL_TIM_SET_AUTORELOAD(&htim3, 0);
+        __HAL_TIM_SET_PRESCALER(&htim3, 4-1);
         gpio_set_value(&drv_dir, (value >= 0));
         __HAL_TIM_SET_COUNTER(&htim2, 0);
         pos_at_cnt0 = csa.cur_pos;
     }
+
+    // 16: 250ns, auto-reload: 16*2-1
     value = clip(abs(value), 16*2-1, 65536*4-1);
     int div = value / 65536;
     value = value / (div + 1);
     __HAL_TIM_SET_PRESCALER(&htim3, div);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 16);
     __HAL_TIM_SET_AUTORELOAD(&htim3, value);
+    htim3.Instance->EGR = TIM_EGR_UG;
     is_last_0 = false;
 }
 
@@ -124,12 +131,10 @@ void app_motor_init(void)
     __HAL_TIM_ENABLE(&htim2);
 
     d_info("init pwm...\n");
-    // 32: 500ns, auto-reload: 32*2-1
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 16);
-    __HAL_TIM_SET_AUTORELOAD(&htim3, 16*2-1);
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
+    __HAL_TIM_SET_AUTORELOAD(&htim3, 0);
     __HAL_TIM_SET_PRESCALER(&htim3, 4-1);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-    delay_systick(100);
     set_pwm(0); // stop pwm
 
     __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
@@ -217,7 +222,7 @@ static inline void t_curve_compute(void)
 
     float dt_pos = csa.tc_vc / LOOP_FREQ;
     if (fabsf(dt_pos) < min(v_step, 1.0f))
-        dt_pos = (dt_pos >= 0 ? 1 : -1) * min(v_step, 1.0f);
+        dt_pos = direction * min(v_step, 1.0f);
     p64f += (double)dt_pos;
     int32_t p32i = lround(p64f);
 
@@ -237,7 +242,6 @@ static inline void t_curve_compute(void)
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-
     if (!csa.state) {
         pid_i_reset(&csa.pid_pos, csa.cur_pos, 0);
         pid_i_set_target(&csa.pid_pos, csa.cur_pos);
@@ -245,7 +249,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         csa.cal_speed = 0;
 
     } else {
-
         int counter_dir = gpio_get_value(&drv_dir) ? 1 : -1;
         csa.cur_pos = pos_at_cnt0 + __HAL_TIM_GET_COUNTER(&htim2) * counter_dir;
 
@@ -253,7 +256,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         pid_i_set_target(&csa.pid_pos, csa.cal_pos);
         csa.cal_speed = pid_i_compute(&csa.pid_pos, csa.cur_pos);
 
-        if (fabsf(csa.cal_speed) <= (float)csa.tc_accel / LOOP_FREQ) {
+        if (fabsf(csa.cal_speed) <= max((float)csa.tc_accel / LOOP_FREQ, 50)) {
             set_pwm(0);
         } else {
             // tc_vc: step / sec; tim3 unit: 1 / 64000000Hz

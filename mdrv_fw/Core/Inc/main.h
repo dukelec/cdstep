@@ -77,7 +77,7 @@ void Error_Handler(void);
 #define SEN_INT_EXTI_IRQn EXTI4_15_IRQn
 #define SEN_SCK_Pin GPIO_PIN_13
 #define SEN_SCK_GPIO_Port GPIOB
-#define SEN_SDO_Pin GPIO_PIN_15
+#define SEN_SDO_Pin GPIO_PIN_14
 #define SEN_SDO_GPIO_Port GPIOB
 #define CD_CS_Pin GPIO_PIN_15
 #define CD_CS_GPIO_Port GPIOA

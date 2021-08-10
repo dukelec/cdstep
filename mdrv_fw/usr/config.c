@@ -69,14 +69,14 @@ const csa_t csa_dft = {
         .tc_speed = 100000,
         .tc_accel = 200000,
 
-        .string_test = "hello",
-
         .pid_pos = {
                 .kp = 15, .ki = 200, .kd = 0.02,
                 .out_min = -2000000,    // 64000000/32
                 .out_max = 2000000,     // limit output speed
                 .period = 1.0f / LOOP_FREQ
         },
+
+        .string_test = "hello"
 };
 
 csa_t csa;
