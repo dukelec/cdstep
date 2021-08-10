@@ -21,22 +21,17 @@ float pid_i_compute(pid_i_t *pid, int input)
     float output;
 
     error = pid->target - input;
-
     pid->i_term += pid->_ki * error;
 
-    if (abs(csa.tc_pos - csa.cal_pos) < 65536/3) {
-        //                                                            max_out         %
-        float i_lim = (float)(abs(csa.tc_pos - csa.cal_pos) + 60) * (65536 * 6) / 20000.0f;
+    float v_step = (float)csa.tc_accel / LOOP_FREQ;
+    if (abs(csa.tc_pos - csa.cal_pos) < v_step * 100) { // reduce to out_max/10 and lower when close to end
+        float i_lim = (float)(abs(csa.tc_pos - csa.cal_pos) + v_step) * (pid->out_max / (v_step * 1000));
         pid->i_term = clip(pid->i_term, -i_lim, i_lim);
+    } else {
+        pid->i_term = clip(pid->i_term, pid->out_min, pid->out_max);
     }
-    pid->i_term = clip(pid->i_term, pid->out_min, pid->out_max);
 
-    //float kp_term = (csa.tc_state == 0 ? (pid->kp / 2.0f) : pid->kp) * error;
-    //float kp_term = (csa.tc_state == 0 ? (pid->kp * 0.6f) : pid->kp) * error;
     float kp_term = pid->kp * error;
-    //                                                           %      max_out     %
-    //float kp_term = (min(abs(csa.tc_pos - csa.cal_pos) + 5000, 20000) * pid->kp / 20000) * error;
-
 
     delta_input = input - pid->last_input; // delta_input = -delta_error
     pid->last_input = input;
@@ -76,6 +71,8 @@ void pid_i_reset(pid_i_t *pid, int input, float output)
 {
     pid->last_input = input;
     pid->i_term = clip(output, pid->out_min, pid->out_max);
+    for (int i = 0; i < HIST_LEN; i++)
+        hist[i] = 0;
 }
 
 void pid_i_init(pid_i_t *pid, bool reset)

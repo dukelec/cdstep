@@ -21,7 +21,7 @@
 
 
 #define APP_CONF_ADDR       0x0801f800 // page 63, the last page
-#define APP_CONF_VER        0x0105
+#define APP_CONF_VER        0x0106
 
 #define FRAME_MAX           10
 #define PACKET_MAX          60
@@ -80,11 +80,12 @@ typedef struct {
     int32_t         tc_pos;
     uint32_t        tc_speed;
     uint32_t        tc_accel;
-    uint32_t        tc_speed_min;
     uint8_t         _reserved3[10];
 
-    // end of flash
-    #define         _end_save state
+    pid_i_t         pid_pos;
+    #define         _end_save cal_pos   // end of flash
+    int32_t         cal_pos;
+    float           cal_speed;
 
     uint8_t         state;          // 0: drv not enable, 1: drv enable
     uint8_t         tc_state;       // t_curve: 0: stop, 1: run, 2: tailer
@@ -93,13 +94,8 @@ typedef struct {
     float           tc_ac;
     uint8_t         _reserved4[10];
 
-    uint32_t        time_cnt;
+    uint32_t        loop_cnt;
     char            string_test[10]; // for cdbus_gui tool test
-
-
-    pid_i_t         pid_pos; ////
-    int32_t         cal_pos;
-    float           cal_speed;
 
 } csa_t; // config status area
 

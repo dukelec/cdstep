@@ -53,28 +53,28 @@ const csa_t csa_dft = {
         .dbg_raw_th = 200,
         .dbg_raw = {
                 {
-                        { .offset = offsetof(csa_t, time_cnt), .size = 4 },
-
                         { .offset = offsetof(csa_t, tc_pos), .size = 4 },
-                        { .offset = offsetof(csa_t, tc_speed), .size = 4 },
                         { .offset = offsetof(csa_t, tc_state), .size = 1 },
-                        { .offset = offsetof(csa_t, cur_pos), .size = 4 * 2 } // + tc_vc
+                        { .offset = offsetof(csa_t, cal_pos), .size = 4 },
+                        { .offset = offsetof(csa_t, cur_pos), .size = 4 * 3 } // + tc_vc, tc_va
+                }, {
+                        { .offset = offsetof(csa_t, pid_pos) + offsetof(pid_i_t, target), .size = 4 * 3 },
+                        { .offset = offsetof(csa_t, cal_speed), .size = 4 },
                 }
         },
 
         .ref_volt = 1000,
-        .md_val = 4,       // 3'b100
+        .md_val = 7,       // 3'b111
 
-        .tc_speed = 10000, // max speed is about 200000
-        .tc_accel = 5000,
-        .tc_speed_min = 100,
+        .tc_speed = 100000,
+        .tc_accel = 200000,
 
         .string_test = "hello",
 
         .pid_pos = {
                 .kp = 15, .ki = 200, .kd = 0.02,
-                .out_min = -65536*100,
-                .out_max = 65536*100, // limit output speed
+                .out_min = -2000000,    // 64000000/32
+                .out_max = 2000000,     // limit output speed
                 .period = 1.0f / LOOP_FREQ
         },
 };
@@ -233,8 +233,16 @@ void csa_list_show(void)
     CSA_SHOW(0, tc_pos, "Set target position");
     CSA_SHOW(0, tc_speed, "Set target speed");
     CSA_SHOW(0, tc_accel, "Set target accel");
-    CSA_SHOW(0, tc_speed_min, "Set the minimum speed");
     d_debug("\n"); debug_flush(true);
+
+    CSA_SHOW_SUB(0, pid_pos, pid_i_t, kp, "");
+    CSA_SHOW_SUB(0, pid_pos, pid_i_t, ki, "");
+    CSA_SHOW_SUB(0, pid_pos, pid_i_t, kd, "");
+    //CSA_SHOW_SUB(0, pid_pos, pid_i_t, out_min, "");
+    //CSA_SHOW_SUB(0, pid_pos, pid_i_t, out_max, "");
+    CSA_SHOW(0, cal_pos, "PID input position");
+    CSA_SHOW(0, cal_speed, "PID output speed");
+    d_info("\n"); debug_flush(true);
 
     CSA_SHOW(0, state, "0: disable drive, 1: enable drive");
     d_debug("\n"); debug_flush(true);
@@ -246,7 +254,7 @@ void csa_list_show(void)
     CSA_SHOW(0, tc_ac, "Motor current accel");
     d_debug("\n"); debug_flush(true);
 
-    CSA_SHOW(0, time_cnt, "Count for plot");
+    CSA_SHOW(0, loop_cnt, "Count for plot");
     CSA_SHOW(0, string_test, "String test");
     d_debug("\n"); debug_flush(true);
 }
