@@ -164,18 +164,24 @@ void app_main(void)
         stack_check();
 
         if (!gpio_get_value(&sen_sdo)) {
-            int force = read_force();
-            if (csa.force_rpt_en) {
-                cdn_pkt_t *pkt = cdn_pkt_get(&dft_ns.free_pkts);
-                if (pkt) {
-                    cdn_init_pkt(pkt);
-                    pkt->dst = csa.force_rpt_dst;
-                    pkt->dat[0] = 0x40;
-                    pkt->len = 5;
-                    memcpy(pkt->dat + 1, &force, 4);
-                    cdn_sock_sendto(&sock_force_rpt, pkt);
+            static int cnt = 0;
+            static int sum = 0;
+            sum += read_force();
+            if (++cnt == 8) {
+                int force = sum / 8;
+                sum = cnt = 0;
+                if (csa.force_rpt_en) {
+                    cdn_pkt_t *pkt = cdn_pkt_get(&dft_ns.free_pkts);
+                    if (pkt) {
+                        cdn_init_pkt(pkt);
+                        pkt->dst = csa.force_rpt_dst;
+                        pkt->dat[0] = 0x40;
+                        pkt->len = 5;
+                        memcpy(pkt->dat + 1, &force, 4);
+                        cdn_sock_sendto(&sock_force_rpt, pkt);
 
-                    d_verbose("rpt force: %d\n", force);
+                        d_verbose("rpt force: %d\n", force);
+                    }
                 }
             }
         }
