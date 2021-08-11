@@ -164,9 +164,12 @@ void app_main(void)
         stack_check();
 
         if (!gpio_get_value(&sen_sdo)) {
+            uint32_t flags;
             static int cnt = 0;
             static int sum = 0;
+            local_irq_save(flags);
             sum += read_force();
+            local_irq_restore(flags);
             if (++cnt == 8) {
                 int force = sum / 8;
                 sum = cnt = 0;
@@ -180,7 +183,7 @@ void app_main(void)
                         memcpy(pkt->dat + 1, &force, 4);
                         cdn_sock_sendto(&sock_force_rpt, pkt);
 
-                        d_verbose("rpt force: %d\n", force);
+                        d_debug("rpt f: %d\n", force);
                     }
                 }
             }
