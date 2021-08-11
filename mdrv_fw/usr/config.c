@@ -48,7 +48,7 @@ const csa_t csa_dft = {
                 { .offset = offsetof(csa_t, cur_pos), .size = 4 * 2 }
         },
 
-        .force_threshold = 10000,
+        .force_threshold = 100, // x100
 
         .dbg_raw_dst = { .addr = {0x80, 0x00, 0x00}, .port = 0xa },
         .dbg_raw_msk = 0,
