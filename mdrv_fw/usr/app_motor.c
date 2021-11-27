@@ -40,12 +40,14 @@ static void microstep_acc_chk(void)
 
 static void set_pwm(int value)
 {
+    static bool ug_stopped = true;
+
     if (value == 0) {
         if (!is_last_0) {
+            ug_stopped = true;
             __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
             __HAL_TIM_SET_AUTORELOAD(&htim3, 0);
             __HAL_TIM_SET_PRESCALER(&htim3, 4-1);
-            gpio_set_value(&drv_dir, (value >= 0));
             __HAL_TIM_SET_COUNTER(&htim2, 0);
             pos_at_cnt0 = csa.cur_pos;
             microstep_acc_chk();
@@ -54,6 +56,7 @@ static void set_pwm(int value)
         return;
     }
     if (gpio_get_value(&drv_dir) != (value >= 0)) {
+        ug_stopped = true;
         __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
         __HAL_TIM_SET_AUTORELOAD(&htim3, 0);
         __HAL_TIM_SET_PRESCALER(&htim3, 4-1);
@@ -63,13 +66,17 @@ static void set_pwm(int value)
     }
 
     // 16: 250ns, auto-reload: 16*2-1
+    // 65536*4: 4ms, TODO: wait 4ms after set_pwm(0)
     value = clip(abs(value), 16*2-1, 65536*4-1);
     int div = value / 65536;
     value = value / (div + 1);
     __HAL_TIM_SET_PRESCALER(&htim3, div);
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 16);
     __HAL_TIM_SET_AUTORELOAD(&htim3, value);
-    htim3.Instance->EGR = TIM_EGR_UG;
+    if (ug_stopped) {
+        ug_stopped = false;
+        htim3.Instance->EGR = TIM_EGR_UG;
+    }
     is_last_0 = false;
 }
 
