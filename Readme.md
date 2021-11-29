@@ -3,7 +3,9 @@ CD-MDRV-STEP Introduction
 
 中文說明 (Chinese): [./Readme_zh.md](./Readme_zh.md)
 
-<img src="doc/cdmdrv_step.jpg">
+<img src="doc/cdmdrv_step2.jpg">
+
+RS-485 wire housing: Molex 5264 (4 pin)
 
 Download this project:
 ```
