@@ -131,8 +131,6 @@ void csa_list_show(void);
 void common_service_init(void);
 void common_service_routine(void);
 
-void set_led_state(led_state_t state);
-
 uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
 uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
 void app_motor_routine(void);

@@ -32,10 +32,14 @@ static void microstep_acc_chk(void)
     // microstep accuracy checking
     bool mo_val = gpio_get_value(&drv_mo);
     uint16_t sub_step = csa.cur_pos & ((4 << csa.md_val) - 1);
-    if (!mo_val && sub_step)
+    if (!mo_val && sub_step) {
         d_warn("mo0 @%d\n", csa.cur_pos);
-    if (mo_val && !sub_step)
+        gpio_set_value(&led_r, 1);
+    }
+    if (mo_val && !sub_step) {
         d_warn("mo1 @%d\n", csa.cur_pos);
+        gpio_set_value(&led_r, 1);
+    }
 }
 
 static void set_pwm(int value)
@@ -111,8 +115,6 @@ uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 
 void app_motor_init(void)
 {
-    set_led_state(LED_POWERON);
-
     HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
     HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, (csa.ref_volt / 1000.0f) * 0x0fff / 3.3f);
 
