@@ -40,43 +40,31 @@ static void microstep_acc_chk(void)
 
 static void set_pwm(int value)
 {
-    static bool ug_stopped = true;
-
-    if (value == 0) {
+    if (value == 0 || gpio_get_value(&drv_dir) != (value >= 0)) {
         if (!is_last_0) {
-            ug_stopped = true;
-            __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-            __HAL_TIM_SET_AUTORELOAD(&htim3, 0);
+            __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0); // pause pwm
+            __HAL_TIM_SET_AUTORELOAD(&htim3, 65535);
             __HAL_TIM_SET_PRESCALER(&htim3, 4-1);
+            // after pausing pwm the counter must be read again and then cleared
+            int counter_dir = gpio_get_value(&drv_dir) ? 1 : -1;
+            csa.cur_pos = pos_at_cnt0 + __HAL_TIM_GET_COUNTER(&htim2) * counter_dir;
             __HAL_TIM_SET_COUNTER(&htim2, 0);
             pos_at_cnt0 = csa.cur_pos;
             microstep_acc_chk();
         }
         is_last_0 = true;
-        return;
-    }
-    if (gpio_get_value(&drv_dir) != (value >= 0)) {
-        ug_stopped = true;
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-        __HAL_TIM_SET_AUTORELOAD(&htim3, 0);
-        __HAL_TIM_SET_PRESCALER(&htim3, 4-1);
         gpio_set_value(&drv_dir, (value >= 0));
-        __HAL_TIM_SET_COUNTER(&htim2, 0);
-        pos_at_cnt0 = csa.cur_pos;
+        if (value == 0)
+            return;
     }
 
-    // 16: 250ns, auto-reload: 16*2-1
-    // 65536*4: 4ms, TODO: wait 4ms after set_pwm(0)
+    // 16: 250ns, auto-reload: 16*2-1, 65536*4: 4ms
     value = clip(abs(value), 16*2-1, 65536*4-1);
     int div = value / 65536;
     value = value / (div + 1);
     __HAL_TIM_SET_PRESCALER(&htim3, div);
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 16);
     __HAL_TIM_SET_AUTORELOAD(&htim3, value);
-    if (ug_stopped) {
-        ug_stopped = false;
-        htim3.Instance->EGR = TIM_EGR_UG;
-    }
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 16);
     is_last_0 = false;
 }
 
@@ -138,11 +126,12 @@ void app_motor_init(void)
     __HAL_TIM_ENABLE(&htim2);
 
     d_info("init pwm...\n");
-    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0);
-    __HAL_TIM_SET_AUTORELOAD(&htim3, 0);
-    __HAL_TIM_SET_PRESCALER(&htim3, 4-1);
+    //__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 16);
+    //__HAL_TIM_SET_AUTORELOAD(&htim3, 65535);
+    //__HAL_TIM_SET_PRESCALER(&htim3, 4-1);
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-    set_pwm(0); // stop pwm
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0); // pause pwm
+    __HAL_TIM_SET_COUNTER(&htim2, 0); // tim2 count at pos edge of tim3 ch1 pwm
 
     __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
     __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);
