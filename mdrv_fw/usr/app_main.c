@@ -51,30 +51,6 @@ static void device_init(void)
     cdn_add_intf(&dft_ns, &r_dev.cd_dev, csa.bus_net, csa.bus_cfg.mac);
 }
 
-void set_led_state(led_state_t state)
-{
-    static bool is_err = false;
-    if (is_err)
-        return;
-
-    switch (state) {
-    case LED_POWERON:
-        gpio_set_value(&led_r, 0);
-        gpio_set_value(&led_g, 1);
-        break;
-    case LED_WARN:
-        gpio_set_value(&led_r, 1);
-        gpio_set_value(&led_g, 0);
-        break;
-    default:
-    case LED_ERROR:
-        is_err = true;
-        gpio_set_value(&led_r, 1);
-        gpio_set_value(&led_g, 1);
-        break;
-    }
-}
-
 
 extern uint32_t end; // end of bss
 #define STACK_CHECK_SKIP 0x200
@@ -141,7 +117,13 @@ void app_main(void)
     cdn_sock_bind(&sock_force_rx);
     uint32_t t_force = 0;
 
+    gpio_set_value(&led_g, 1);
+    //uint32_t t_last = get_systick();
     while (true) {
+        //if (get_systick() - t_last > (gpio_get_value(&led_g) ? 400 : 600)) {
+        //    t_last = get_systick();
+        //    gpio_set_value(&led_g, !gpio_get_value(&led_g));
+        //}
         stack_check();
 
         cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock_force_rx);
