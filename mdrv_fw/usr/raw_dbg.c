@@ -20,7 +20,7 @@ void raw_dbg(int idx)
 
     if (!(csa.dbg_raw_msk & (1 << idx))) {
         if (pkt_raw[idx]) {
-            list_put(&dft_ns.free_pkts, &pkt_raw[idx]->node);
+            list_put(dft_ns.free_pkts, &pkt_raw[idx]->node);
             pkt_raw[idx] = NULL;
         }
         return;
@@ -33,12 +33,12 @@ void raw_dbg(int idx)
     }
 
     if (!pkt_less && !pkt_raw[idx]) {
-        if (dft_ns.free_pkts.len < 5) {
+        if (dft_ns.free_pkts->len < 5) {
             pkt_less = true;
             return;
 
         } else {
-            pkt_raw[idx] = cdn_pkt_get(&dft_ns.free_pkts);
+            pkt_raw[idx] = cdn_pkt_get(dft_ns.free_pkts);
             cdn_init_pkt(pkt_raw[idx]);
             pkt_raw[idx]->dst = csa.dbg_raw_dst;
             pkt_raw[idx]->dat[0] = 0x40 | idx;
