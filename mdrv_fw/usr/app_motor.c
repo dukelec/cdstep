@@ -81,12 +81,8 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
     local_irq_save(flags);
     if (csa.state && !csa.tc_state && csa.tc_pos != csa.cal_pos) {
         local_irq_restore(flags);
-
         d_debug("run motor ...\n");
         csa.tc_state = 1;
-
-        //__HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
-        //__HAL_TIM_ENABLE(&htim1);
     } else {
         local_irq_restore(flags);
     }
@@ -141,20 +137,18 @@ void app_motor_routine(void)
     uint32_t flags;
 
     if (csa.set_home && is_last_0) {
+        // after setting home, do not set tc_pos too close to 0 to avoid impacting the mechanical limits
         // retain microstep to improve repetition accuracy
         local_irq_save(flags);
         uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
         csa.cur_pos = micro & (2 << csa.md_val) ? micro - (4 << csa.md_val) : micro;
-        pos_at_cnt0 = csa.cur_pos;
-        csa.tc_pos = 0;
+        pos_at_cnt0 = csa.cal_pos = csa.tc_pos = csa.cur_pos;
         pid_i_reset(&csa.pid_pos, csa.cur_pos, 0);
         pid_i_set_target(&csa.pid_pos, csa.cur_pos);
-        csa.cal_pos = csa.cur_pos;
         csa.cal_speed = 0;
         local_irq_restore(flags);
         d_debug("after set home cur_pos: %d\n", csa.cur_pos);
         csa.set_home = false;
-        motor_w_hook(0, 0, NULL);
     }
 
     // disable motor driver reset microstep
@@ -162,6 +156,8 @@ void app_motor_routine(void)
         uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
         int delta = micro & (2 << csa.md_val) ? micro - (4 << csa.md_val) : micro;
         csa.cur_pos -= delta;
+        pos_at_cnt0 = csa.cur_pos;
+        __HAL_TIM_SET_COUNTER(&htim2, 0);
     }
 
     if (!csa.tc_state)
@@ -233,7 +229,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         pid_i_set_target(&csa.pid_pos, csa.cal_pos);
         csa.cal_speed = pid_i_compute(&csa.pid_pos, csa.cur_pos);
 
-        if (fabsf(csa.cal_speed) <= max((float)csa.tc_accel / LOOP_FREQ, 50)) {
+        if (fabsf(csa.cal_speed) <= max((float)csa.tc_accel / LOOP_FREQ, 50.0f)) {
             set_pwm(0);
         } else {
             // tc_vc: step / sec; tim3 unit: 1 / 64000000Hz
@@ -254,7 +250,7 @@ void limit_det_isr(void)
         return;
     limit_disable = true;
 
-    // It will go to different direction if tc_vc >= min speed.
+    // When performing detection, it is recommended to set tc_speed smaller and tc_accel larger.
 
     // To improve the repetition accuracy,
     // go to the closest microstep value triggered by the limit switch in the last calibration,
