@@ -88,7 +88,7 @@ typedef struct {
     float           cal_speed;
 
     uint8_t         state;          // 0: drv not enable, 1: drv enable
-    uint8_t         tc_state;       // t_curve: 0: stop, 1: run, 2: tailer
+    uint8_t         tc_state;       // t_curve: 0: stop, 1: run
     int             cur_pos;
     float           tc_vc;
     float           tc_ac;

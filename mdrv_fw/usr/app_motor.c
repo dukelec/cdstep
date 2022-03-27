@@ -79,9 +79,6 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
     gpio_set_value(&drv_en, csa.state);
 
     local_irq_save(flags);
-    if (csa.state && csa.tc_state == 2)
-        csa.tc_state = 1;
-
     if (csa.state && !csa.tc_state && csa.tc_pos != csa.cal_pos) {
         local_irq_restore(flags);
 
@@ -175,9 +172,7 @@ void app_motor_routine(void)
 static inline void t_curve_compute(void)
 {
     static double p64f = (double)INFINITY;
-
     float v_step = (float)csa.tc_accel / LOOP_FREQ;
-    float v_stop = v_step * 1.2f;
 
     if (!csa.tc_state) {
         csa.tc_vc = 0;
@@ -188,39 +183,23 @@ static inline void t_curve_compute(void)
         p64f = csa.cal_pos;
     }
 
-    int direction = sign(csa.tc_pos - csa.cal_pos);
-    if (direction == 0) {
-        direction = -sign(csa.tc_vc);
-        csa.tc_state = 3;
-    } else if (csa.tc_state == 3 && fabsf(csa.tc_vc) <= v_stop) {
-        csa.tc_state = 1;
-    }
-
-    // slightly more than allowed, such as 1.2 times
-    if (csa.tc_state != 3) {
+    if (csa.tc_pos != csa.cal_pos) {
+        // t = (v1 - v2) / a; s = ((v1 + v2) / 2) * t; a =>
         csa.tc_ac = ((/* tc_ve + */ csa.tc_vc) / 2.0f) * (/* tc_ve */ - csa.tc_vc) / (csa.tc_pos - csa.cal_pos);
         csa.tc_ac = min(fabsf(csa.tc_ac), csa.tc_accel * 1.2f);
-
     } else {
-        csa.tc_ac = csa.tc_accel * 2.0f; // reduce overrun
+        csa.tc_ac = csa.tc_accel * 1.2f;
     }
 
-    if (csa.tc_state == 1) {
-        if (fabsf(csa.tc_ac) < csa.tc_accel) {
-            csa.tc_vc += direction * v_step;
-            csa.tc_vc = clip(csa.tc_vc, -(float)csa.tc_speed, (float)csa.tc_speed);
-        } else {
-            csa.tc_state = 2;
-        }
-    }
-    if (csa.tc_state != 1) {
+    if (csa.tc_ac >= csa.tc_accel) {
         float delta_v = csa.tc_ac / LOOP_FREQ;
         csa.tc_vc += -sign(csa.tc_vc) * delta_v;
+    } else {
+        csa.tc_vc += ((csa.tc_pos >= csa.cal_pos) ? 1 : -1) * v_step;
+        csa.tc_vc = clip(csa.tc_vc, -(float)csa.tc_speed, (float)csa.tc_speed);
     }
 
     float dt_pos = csa.tc_vc / LOOP_FREQ;
-    if (fabsf(dt_pos) < min(v_step, 1.0f))
-        dt_pos = direction * min(v_step, 1.0f);
     p64f += (double)dt_pos;
     int32_t p32i = lround(p64f);
 
@@ -230,11 +209,11 @@ static inline void t_curve_compute(void)
             csa.tc_state = 0;
             csa.tc_vc = 0;
             csa.tc_ac = 0;
+            p64f = csa.cal_pos;
         }
     } else {
         csa.cal_pos = p32i;
     }
-
 }
 
 

@@ -248,7 +248,7 @@ void csa_list_show(void)
     d_debug("\n"); debug_flush(true);
 
     d_debug("   // --------------- Follows are not writable: -------------------\n");
-    CSA_SHOW(0, tc_state, "t_curve: 0: stop, 1: run, 2: tailer");
+    CSA_SHOW(0, tc_state, "t_curve: 0: stop, 1: run");
     CSA_SHOW(0, cur_pos, "Motor current position");
     CSA_SHOW(0, tc_vc, "Motor current speed");
     CSA_SHOW(0, tc_ac, "Motor current accel");
