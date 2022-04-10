@@ -80,18 +80,11 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
     gpio_set_value(&drv_en, csa.state);
 
     local_irq_save(flags);
-    if (csa.state && csa.tc_state == 2)
-        csa.tc_state = 1;
-
     if (csa.state && !csa.tc_state && csa.tc_pos != csa.cal_pos) {
         local_irq_restore(flags);
-
         force_ofs = force_rx;
         d_debug("run motor ..., f: %d, trg: %d\n", force_ofs, csa.force_trigger_en);
         csa.tc_state = 1;
-
-        //__HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
-        //__HAL_TIM_ENABLE(&htim1);
     } else {
         local_irq_restore(flags);
     }
@@ -148,20 +141,18 @@ void app_motor_routine(void)
     uint32_t flags;
 
     if (csa.set_home && is_last_0) {
+        // after setting home, do not set tc_pos too close to 0 to avoid impacting the mechanical limits
         // retain microstep to improve repetition accuracy
         local_irq_save(flags);
         uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
         csa.cur_pos = micro & (2 << csa.md_val) ? micro - (4 << csa.md_val) : micro;
-        pos_at_cnt0 = csa.cur_pos;
-        csa.tc_pos = 0;
+        pos_at_cnt0 = csa.cal_pos = csa.tc_pos = csa.cur_pos;
         pid_i_reset(&csa.pid_pos, csa.cur_pos, 0);
         pid_i_set_target(&csa.pid_pos, csa.cur_pos);
-        csa.cal_pos = csa.cur_pos;
         csa.cal_speed = 0;
         local_irq_restore(flags);
         d_debug("after set home cur_pos: %d\n", csa.cur_pos);
         csa.set_home = false;
-        motor_w_hook(0, 0, NULL);
     }
 
     // disable motor driver reset microstep
@@ -169,6 +160,8 @@ void app_motor_routine(void)
         uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
         int delta = micro & (2 << csa.md_val) ? micro - (4 << csa.md_val) : micro;
         csa.cur_pos -= delta;
+        pos_at_cnt0 = csa.cur_pos;
+        __HAL_TIM_SET_COUNTER(&htim2, 0);
     }
 
     if (!csa.tc_state)
@@ -179,9 +172,7 @@ void app_motor_routine(void)
 static inline void t_curve_compute(void)
 {
     static double p64f = (double)INFINITY;
-
     float v_step = (float)csa.tc_accel / LOOP_FREQ;
-    float v_stop = v_step * 1.2f;
 
     if (!csa.tc_state) {
         csa.tc_vc = 0;
@@ -192,39 +183,23 @@ static inline void t_curve_compute(void)
         p64f = csa.cal_pos;
     }
 
-    int direction = sign(csa.tc_pos - csa.cal_pos);
-    if (direction == 0) {
-        direction = -sign(csa.tc_vc);
-        csa.tc_state = 3;
-    } else if (csa.tc_state == 3 && fabsf(csa.tc_vc) <= v_stop) {
-        csa.tc_state = 1;
-    }
-
-    // slightly more than allowed, such as 1.2 times
-    if (csa.tc_state != 3) {
+    if (csa.tc_pos != csa.cal_pos) {
+        // t = (v1 - v2) / a; s = ((v1 + v2) / 2) * t; a =>
         csa.tc_ac = ((/* tc_ve + */ csa.tc_vc) / 2.0f) * (/* tc_ve */ - csa.tc_vc) / (csa.tc_pos - csa.cal_pos);
         csa.tc_ac = min(fabsf(csa.tc_ac), csa.tc_accel * 1.2f);
-
     } else {
-        csa.tc_ac = csa.tc_accel * 2.0f; // reduce overrun
+        csa.tc_ac = csa.tc_accel * 1.2f;
     }
 
-    if (csa.tc_state == 1) {
-        if (fabsf(csa.tc_ac) < csa.tc_accel) {
-            csa.tc_vc += direction * v_step;
-            csa.tc_vc = clip(csa.tc_vc, -(float)csa.tc_speed, (float)csa.tc_speed);
-        } else {
-            csa.tc_state = 2;
-        }
-    }
-    if (csa.tc_state != 1) {
+    if (csa.tc_ac >= csa.tc_accel) {
         float delta_v = csa.tc_ac / LOOP_FREQ;
         csa.tc_vc += -sign(csa.tc_vc) * delta_v;
+    } else {
+        csa.tc_vc += ((csa.tc_pos >= csa.cal_pos) ? 1 : -1) * v_step;
+        csa.tc_vc = clip(csa.tc_vc, -(float)csa.tc_speed, (float)csa.tc_speed);
     }
 
     float dt_pos = csa.tc_vc / LOOP_FREQ;
-    if (fabsf(dt_pos) < min(v_step, 1.0f))
-        dt_pos = direction * min(v_step, 1.0f);
     p64f += (double)dt_pos;
     int32_t p32i = lround(p64f);
 
@@ -236,11 +211,11 @@ static inline void t_curve_compute(void)
             csa.tc_ac = 0;
             d_debug("tc: arrive pos %d, trg %d\n", csa.tc_pos, csa.force_trigger_en);
             csa.force_trigger_en = false;
+            p64f = csa.cal_pos;
         }
     } else {
         csa.cal_pos = p32i;
     }
-
 }
 
 
@@ -267,7 +242,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         pid_i_set_target(&csa.pid_pos, csa.cal_pos);
         csa.cal_speed = pid_i_compute(&csa.pid_pos, csa.cur_pos);
 
-        if (fabsf(csa.cal_speed) <= max((float)csa.tc_accel / LOOP_FREQ, 50)) {
+        if (fabsf(csa.cal_speed) <= max((float)csa.tc_accel / LOOP_FREQ, 50.0f)) {
             set_pwm(0);
         } else {
             // tc_vc: step / sec; tim3 unit: 1 / 64000000Hz
@@ -288,7 +263,7 @@ void limit_det_isr(void)
         return;
     limit_disable = true;
 
-    // It will go to different direction if tc_vc >= min speed.
+    // When performing detection, it is recommended to set tc_speed smaller and tc_accel larger.
 
     // To improve the repetition accuracy,
     // go to the closest microstep value triggered by the limit switch in the last calibration,

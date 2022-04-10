@@ -65,14 +65,14 @@ const csa_t csa_dft = {
                 }
         },
 
-        .ref_volt = 1000,
+        .ref_volt = 500,
         .md_val = 7,       // 3'b111
 
         .tc_speed = 100000,
         .tc_accel = 200000,
 
         .pid_pos = {
-                .kp = 15, .ki = 200, .kd = 0.02,
+                .kp = 50, .ki = 5000, .kd = 0.02,
                 .out_min = -2000000,    // 64000000/32
                 .out_max = 2000000,     // limit output speed
                 .period = 1.0f / LOOP_FREQ
@@ -101,6 +101,8 @@ void load_conf(void)
     if (csa.conf_from) {
         memset(&csa.do_reboot, 0, 3);
         csa.tc_pos = 0;
+        csa.pid_pos.out_max = csa_dft.pid_pos.out_max;
+        csa.pid_pos.out_min = csa_dft.pid_pos.out_min;
     }
 }
 
@@ -254,7 +256,7 @@ void csa_list_show(void)
     d_debug("\n"); debug_flush(true);
 
     d_debug("   // --------------- Follows are not writable: -------------------\n");
-    CSA_SHOW(0, tc_state, "t_curve: 0: stop, 1: run, 2: tailer");
+    CSA_SHOW(0, tc_state, "t_curve: 0: stop, 1: run");
     CSA_SHOW(0, cur_pos, "Motor current position");
     CSA_SHOW(0, tc_vc, "Motor current speed");
     CSA_SHOW(0, tc_ac, "Motor current accel");
