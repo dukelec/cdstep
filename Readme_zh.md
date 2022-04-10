@@ -1,7 +1,9 @@
 CD-MDRV-STEP 簡介
 =======================================
 
-<img src="doc/cdmdrv_step.jpg">
+<img src="doc/cdmdrv_step2.jpg">
+
+RS-485 插頭型號: Molex 5264 (4 pin)
 
 下載項目：
 ```

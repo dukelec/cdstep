@@ -22,14 +22,7 @@ float pid_i_compute(pid_i_t *pid, int input)
 
     error = pid->target - input;
     pid->i_term += pid->_ki * error;
-
-    float v_step = (float)csa.tc_accel / LOOP_FREQ;
-    if (abs(csa.tc_pos - csa.cal_pos) < v_step * 100) { // reduce to out_max/10 and lower when close to end
-        float i_lim = (float)(abs(csa.tc_pos - csa.cal_pos) + v_step) * (pid->out_max / (v_step * 1000));
-        pid->i_term = clip(pid->i_term, -i_lim, i_lim);
-    } else {
-        pid->i_term = clip(pid->i_term, pid->out_min, pid->out_max);
-    }
+    pid->i_term = clip(pid->i_term, pid->out_min, pid->out_max);
 
     float kp_term = pid->kp * error;
 
