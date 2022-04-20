@@ -68,6 +68,7 @@ const csa_t csa_dft = {
 
         .tc_speed = 100000,
         .tc_accel = 200000,
+        .tc_accel_emg = 8000000,
 
         .pid_pos = {
                 .kp = 50, .ki = 5000, .kd = 0.02,
@@ -235,6 +236,7 @@ void csa_list_show(void)
     CSA_SHOW(0, tc_pos, "Set target position");
     CSA_SHOW(0, tc_speed, "Set target speed");
     CSA_SHOW(0, tc_accel, "Set target accel");
+    CSA_SHOW(0, tc_accel_emg, "Set emergency accel");
     d_debug("\n"); debug_flush(true);
 
     CSA_SHOW_SUB(0, pid_pos, pid_i_t, kp, "");

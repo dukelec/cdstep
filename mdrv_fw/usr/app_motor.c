@@ -168,7 +168,8 @@ void app_motor_routine(void)
 static inline void t_curve_compute(void)
 {
     static double p64f = (double)INFINITY;
-    float v_step = (float)csa.tc_accel / LOOP_FREQ;
+    uint32_t accel = limit_disable ? csa.tc_accel_emg : csa.tc_accel;
+    float v_step = (float)accel / LOOP_FREQ;
 
     if (!csa.tc_state) {
         csa.tc_vc = 0;
@@ -182,12 +183,12 @@ static inline void t_curve_compute(void)
     if (csa.tc_pos != csa.cal_pos) {
         // t = (v1 - v2) / a; s = ((v1 + v2) / 2) * t; a =>
         csa.tc_ac = ((/* tc_ve + */ csa.tc_vc) / 2.0f) * (/* tc_ve */ - csa.tc_vc) / (csa.tc_pos - csa.cal_pos);
-        csa.tc_ac = min(fabsf(csa.tc_ac), csa.tc_accel * 1.2f);
+        csa.tc_ac = min(fabsf(csa.tc_ac), accel * 1.2f);
     } else {
-        csa.tc_ac = csa.tc_accel * 1.2f;
+        csa.tc_ac = accel * 1.2f;
     }
 
-    if (csa.tc_ac >= csa.tc_accel) {
+    if (csa.tc_ac >= accel) {
         float delta_v = csa.tc_ac / LOOP_FREQ;
         csa.tc_vc += -sign(csa.tc_vc) * delta_v;
     } else {

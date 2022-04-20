@@ -80,7 +80,8 @@ typedef struct {
     int32_t         tc_pos;
     uint32_t        tc_speed;
     uint32_t        tc_accel;
-    uint8_t         _reserved3[10];
+    uint32_t        tc_accel_emg;
+    uint8_t         _reserved3[6];
 
     pid_i_t         pid_pos;
     #define         _end_save cal_pos   // end of flash
