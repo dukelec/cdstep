@@ -247,7 +247,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void limit_det_isr(void)
 {
     d_debug("lim: detected, %d\n", limit_disable);
-    if (limit_disable)
+    if (!csa.lim_en || limit_disable)
         return;
     limit_disable = true;
 

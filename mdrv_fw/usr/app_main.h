@@ -75,7 +75,8 @@ typedef struct {
 
     uint16_t        lim_micro;
     bool            lim_cali;
-    uint8_t         _reserved2[6];
+    bool            lim_en;
+    uint8_t         _reserved2[5];
 
     int32_t         tc_pos;
     uint32_t        tc_speed;

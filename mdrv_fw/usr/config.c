@@ -65,6 +65,7 @@ const csa_t csa_dft = {
 
         .ref_volt = 500,
         .md_val = 7,       // 3'b111
+        .lim_en = true,
 
         .tc_speed = 100000,
         .tc_accel = 200000,
@@ -231,6 +232,7 @@ void csa_list_show(void)
 
     CSA_SHOW(1, lim_micro, "Microstep value for limit switch");
     CSA_SHOW(0, lim_cali, "Whether lim_micro is valid");
+    CSA_SHOW(0, lim_en, "Enable limit switch");
     d_debug("\n"); debug_flush(true);
 
     CSA_SHOW(0, tc_pos, "Set target position");
