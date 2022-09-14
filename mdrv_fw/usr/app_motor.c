@@ -20,27 +20,12 @@ static gpio_t drv_md1 = { .group = DRV_MD1_GPIO_Port, .num = DRV_MD1_Pin };
 static gpio_t drv_md2 = { .group = DRV_MD2_GPIO_Port, .num = DRV_MD2_Pin };
 static gpio_t drv_md3 = { .group = DRV_MD3_GPIO_Port, .num = DRV_MD3_Pin };
 static gpio_t drv_dir = { .group = DRV_DIR_GPIO_Port, .num = DRV_DIR_Pin };
-static gpio_t drv_mo = { .group = DRV_MO_GPIO_Port, .num = DRV_MO_Pin };
+//static gpio_t drv_mo = { .group = DRV_MO_GPIO_Port, .num = DRV_MO_Pin };
 static bool limit_disable = false;
 
 static int32_t pos_at_cnt0 = 0; // backup cur_pos at start
 static bool is_last_0 = false;  // for set_pwm
 
-
-static void microstep_acc_chk(void)
-{
-    // microstep accuracy checking
-    bool mo_val = gpio_get_value(&drv_mo);
-    uint16_t sub_step = csa.cur_pos & ((4 << csa.md_val) - 1);
-    if (!mo_val && sub_step) {
-        d_warn("mo0 @%d\n", csa.cur_pos);
-        gpio_set_value(&led_r, 1);
-    }
-    if (mo_val && !sub_step) {
-        d_warn("mo1 @%d\n", csa.cur_pos);
-        gpio_set_value(&led_r, 1);
-    }
-}
 
 static void set_pwm(int value)
 {
@@ -54,7 +39,6 @@ static void set_pwm(int value)
             csa.cur_pos = pos_at_cnt0 + __HAL_TIM_GET_COUNTER(&htim2) * counter_dir;
             __HAL_TIM_SET_COUNTER(&htim2, 0);
             pos_at_cnt0 = csa.cur_pos;
-            microstep_acc_chk();
         }
         is_last_0 = true;
         gpio_set_value(&drv_dir, (value >= 0));
@@ -138,10 +122,7 @@ void app_motor_routine(void)
 
     if (csa.set_home && is_last_0) {
         // after setting home, do not set tc_pos too close to 0 to avoid impacting the mechanical limits
-        // retain microstep to improve repetition accuracy
         local_irq_save(flags);
-        uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
-        csa.cur_pos = micro & (2 << csa.md_val) ? micro - (4 << csa.md_val) : micro;
         pos_at_cnt0 = csa.cal_pos = csa.tc_pos = csa.cur_pos;
         pid_i_reset(&csa.pid_pos, csa.cur_pos, 0);
         pid_i_set_target(&csa.pid_pos, csa.cur_pos);
@@ -151,11 +132,7 @@ void app_motor_routine(void)
         csa.set_home = false;
     }
 
-    // disable motor driver reset microstep
     if (!csa.state && !csa.tc_state) {
-        uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
-        int delta = micro & (2 << csa.md_val) ? micro - (4 << csa.md_val) : micro;
-        csa.cur_pos -= delta;
         pos_at_cnt0 = csa.cur_pos;
         __HAL_TIM_SET_COUNTER(&htim2, 0);
     }
@@ -251,21 +228,6 @@ void limit_det_isr(void)
         return;
     limit_disable = true;
 
-    // When performing detection, it is recommended to set tc_speed smaller and tc_accel larger.
-
-    // To improve the repetition accuracy,
-    // go to the closest microstep value triggered by the limit switch in the last calibration,
-    // and then run the set_home command.
-    if (!csa.lim_cali) {
-        csa.lim_micro = csa.cur_pos & ((4 << csa.md_val) - 1);
-        csa.lim_cali = true;
-        csa.tc_pos = csa.cur_pos;
-
-    } else {
-        uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
-        micro = micro >= csa.lim_micro ? micro : micro + (4 << csa.md_val);
-        int delta = micro - csa.lim_micro;
-        delta = delta & (2 << csa.md_val) ? delta - (4 << csa.md_val) : delta;
-        csa.tc_pos = csa.cur_pos - delta;
-    }
+    // when performing detection, it is recommended to set tc_speed smaller and tc_accel larger
+    csa.tc_pos = csa.cur_pos;
 }

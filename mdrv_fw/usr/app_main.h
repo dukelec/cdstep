@@ -73,16 +73,15 @@ typedef struct {
     uint8_t         md_val;
     bool            set_home;
 
-    uint16_t        lim_micro;
-    bool            lim_cali;
+    uint8_t         _reserved2[3];
     bool            lim_en;
-    uint8_t         _reserved2[5];
+    uint8_t         _reserved3[5];
 
     int32_t         tc_pos;
     uint32_t        tc_speed;
     uint32_t        tc_accel;
     uint32_t        tc_accel_emg;
-    uint8_t         _reserved3[6];
+    uint8_t         _reserved4[6];
 
     pid_i_t         pid_pos;
     #define         _end_save cal_pos   // end of flash
@@ -94,7 +93,7 @@ typedef struct {
     int             cur_pos;
     float           tc_vc;
     float           tc_ac;
-    uint8_t         _reserved4[10];
+    uint8_t         _reserved5[10];
 
     uint32_t        loop_cnt;
     char            string_test[10]; // for cdbus_gui tool test
