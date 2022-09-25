@@ -24,7 +24,12 @@ csa_hook_t csa_w_hook[] = {
         }
 };
 
-csa_hook_t csa_r_hook[] = {};
+csa_hook_t csa_r_hook[] = {
+        {
+            .range = { .offset = offsetof(csa_t, drv_mo), .size = 1 },
+            .before = drv_mo_r_hook
+        }
+};
 
 int csa_w_allow_num = sizeof(csa_w_allow) / sizeof(regr_t);
 int csa_w_hook_num = sizeof(csa_w_hook) / sizeof(csa_hook_t);
@@ -229,6 +234,7 @@ void csa_list_show(void)
     CSA_SHOW(0, ref_volt, "Motor driver reference voltage, unit: mV");
     CSA_SHOW(0, md_val, "Motor driver md[2:0] pin value");
     CSA_SHOW(0, set_home, "Write 1 set home position");
+    CSA_SHOW(0, drv_mo, "MO pin state of drv chip, for debug");
     CSA_SHOW(0, lim_en, "Enable limit switch");
     d_debug("\n"); debug_flush(true);
 

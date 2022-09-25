@@ -20,7 +20,7 @@ static gpio_t drv_md1 = { .group = DRV_MD1_GPIO_Port, .num = DRV_MD1_Pin };
 static gpio_t drv_md2 = { .group = DRV_MD2_GPIO_Port, .num = DRV_MD2_Pin };
 static gpio_t drv_md3 = { .group = DRV_MD3_GPIO_Port, .num = DRV_MD3_Pin };
 static gpio_t drv_dir = { .group = DRV_DIR_GPIO_Port, .num = DRV_DIR_Pin };
-//static gpio_t drv_mo = { .group = DRV_MO_GPIO_Port, .num = DRV_MO_Pin };
+static gpio_t drv_mo = { .group = DRV_MO_GPIO_Port, .num = DRV_MO_Pin };
 static bool limit_disable = false;
 
 static int32_t pos_at_cnt0 = 0; // backup cur_pos at start
@@ -86,6 +86,13 @@ uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 {
     d_debug("set reference voltage: %d mv\n", csa.ref_volt);
     HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, (csa.ref_volt / 1000.0f) * 0x0fff / 3.3f);
+    return 0;
+}
+
+uint8_t drv_mo_r_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
+{
+    csa.drv_mo = gpio_get_value(&drv_mo);
+    d_debug("read drv_mo: %d\n", csa.drv_mo);
     return 0;
 }
 

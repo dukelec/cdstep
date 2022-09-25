@@ -72,8 +72,9 @@ typedef struct {
     uint16_t        ref_volt;
     uint8_t         md_val;
     bool            set_home;
+    bool            drv_mo;         // mo pin state of drv chip
 
-    uint8_t         _reserved2[3];
+    uint8_t         _reserved2[2];
     bool            lim_en;
     uint8_t         _reserved3[5];
 
@@ -134,6 +135,7 @@ void common_service_routine(void);
 
 uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
 uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
+uint8_t drv_mo_r_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
 void app_motor_routine(void);
 void app_motor_init(void);
 void raw_dbg(int idx);
