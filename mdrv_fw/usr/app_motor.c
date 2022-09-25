@@ -25,10 +25,24 @@ static bool limit_disable = false;
 
 static int32_t pos_at_cnt0 = 0; // backup cur_pos at start
 static bool is_last_0 = false;  // for set_pwm
+// add time space before and after drv_dir switch (not necessary)
+static bool wait_before_dir_chg = false;
+static bool wait_after_dir_chg = false;
 
 
 static void set_pwm(int value)
 {
+    if (wait_before_dir_chg) {
+        gpio_set_value(&drv_dir, (value >= 0));
+        wait_before_dir_chg = false;
+        wait_after_dir_chg = true;
+        return;
+    }
+    if (wait_after_dir_chg) {
+        wait_after_dir_chg = false;
+        return;
+    }
+
     if (value == 0 || gpio_get_value(&drv_dir) != (value >= 0)) {
         if (!is_last_0) {
             __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0); // pause pwm
@@ -41,9 +55,8 @@ static void set_pwm(int value)
             pos_at_cnt0 = csa.cur_pos;
         }
         is_last_0 = true;
-        gpio_set_value(&drv_dir, (value >= 0));
-        if (value == 0)
-            return;
+        wait_before_dir_chg = true;
+        return;
     }
 
     // 16: 250ns, auto-reload: 16*2-1, 65536*4: 4ms
@@ -118,6 +131,7 @@ void app_motor_init(void)
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0); // pause pwm
     __HAL_TIM_SET_COUNTER(&htim2, 0); // tim2 count at pos edge of tim3 ch1 pwm
+    set_pwm(0); // init flags
 
     __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
     __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);
