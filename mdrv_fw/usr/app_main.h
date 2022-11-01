@@ -75,17 +75,17 @@ typedef struct {
     uint16_t        ref_volt;
     uint8_t         md_val;
     bool            set_home;
+    bool            drv_mo;         // mo pin state of drv chip
 
-    uint16_t        lim_micro;
-    bool            lim_cali;
+    uint8_t         _reserved2[2];
     bool            lim_en;
-    uint8_t         _reserved2[5];
+    uint8_t         _reserved3[5];
 
     int32_t         tc_pos;
     uint32_t        tc_speed;
     uint32_t        tc_accel;
     uint32_t        tc_accel_emg;
-    uint8_t         _reserved3[6];
+    uint8_t         _reserved4[6];
 
     pid_i_t         pid_pos;
     #define         _end_save cal_pos   // end of flash
@@ -97,7 +97,7 @@ typedef struct {
     int             cur_pos;
     float           tc_vc;
     float           tc_ac;
-    uint8_t         _reserved4[10];
+    uint8_t         _reserved5[10];
 
     uint32_t        loop_cnt;
     char            string_test[10]; // for cdbus_gui tool test
@@ -138,6 +138,7 @@ void common_service_routine(void);
 
 uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
 uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
+uint8_t drv_mo_r_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
 void app_motor_routine(void);
 void app_motor_init(void);
 void raw_dbg(int idx);

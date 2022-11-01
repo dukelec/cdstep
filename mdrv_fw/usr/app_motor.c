@@ -29,25 +29,24 @@ static int force_ofs = 0;
 
 static int32_t pos_at_cnt0 = 0; // backup cur_pos at start
 static bool is_last_0 = false;  // for set_pwm
+// add time space before and after drv_dir switch (not necessary)
+static bool wait_before_dir_chg = false;
+static bool wait_after_dir_chg = false;
 
-
-static void microstep_acc_chk(void)
-{
-    // microstep accuracy checking
-    bool mo_val = gpio_get_value(&drv_mo);
-    uint16_t sub_step = csa.cur_pos & ((4 << csa.md_val) - 1);
-    if (!mo_val && sub_step) {
-        d_warn("mo0 @%d\n", csa.cur_pos);
-        gpio_set_value(&led_r, 1);
-    }
-    if (mo_val && !sub_step) {
-        d_warn("mo1 @%d\n", csa.cur_pos);
-        gpio_set_value(&led_r, 1);
-    }
-}
 
 static void set_pwm(int value)
 {
+    if (wait_before_dir_chg) {
+        gpio_set_value(&drv_dir, (value >= 0));
+        wait_before_dir_chg = false;
+        wait_after_dir_chg = true;
+        return;
+    }
+    if (wait_after_dir_chg) {
+        wait_after_dir_chg = false;
+        return;
+    }
+
     if (value == 0 || gpio_get_value(&drv_dir) != (value >= 0)) {
         if (!is_last_0) {
             __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0); // pause pwm
@@ -58,12 +57,10 @@ static void set_pwm(int value)
             csa.cur_pos = pos_at_cnt0 + __HAL_TIM_GET_COUNTER(&htim2) * counter_dir;
             __HAL_TIM_SET_COUNTER(&htim2, 0);
             pos_at_cnt0 = csa.cur_pos;
-            microstep_acc_chk();
         }
         is_last_0 = true;
-        gpio_set_value(&drv_dir, (value >= 0));
-        if (value == 0)
-            return;
+        wait_before_dir_chg = true;
+        return;
     }
 
     // 16: 250ns, auto-reload: 16*2-1, 65536*4: 4ms
@@ -112,6 +109,13 @@ uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
     return 0;
 }
 
+uint8_t drv_mo_r_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
+{
+    csa.drv_mo = gpio_get_value(&drv_mo);
+    d_debug("read drv_mo: %d\n", csa.drv_mo);
+    return 0;
+}
+
 
 void app_motor_init(void)
 {
@@ -136,6 +140,7 @@ void app_motor_init(void)
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
     __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0); // pause pwm
     __HAL_TIM_SET_COUNTER(&htim2, 0); // tim2 count at pos edge of tim3 ch1 pwm
+    set_pwm(0); // init flags
 
     __HAL_TIM_CLEAR_IT(&htim1, TIM_IT_UPDATE);
     __HAL_TIM_ENABLE_IT(&htim1, TIM_IT_UPDATE);
@@ -147,11 +152,8 @@ void app_motor_routine(void)
 
     if (csa.set_home && is_last_0) {
         // after setting home, do not set tc_pos too close to 0 to avoid impacting the mechanical limits
-        // retain microstep to improve repetition accuracy
         local_irq_save(flags);
-        uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
-        csa.cur_pos = micro & (2 << csa.md_val) ? micro - (4 << csa.md_val) : micro;
-        pos_at_cnt0 = csa.cal_pos = csa.tc_pos = csa.cur_pos;
+        pos_at_cnt0 = csa.cal_pos = csa.tc_pos = csa.cur_pos = 0;
         pid_i_reset(&csa.pid_pos, csa.cur_pos, 0);
         pid_i_set_target(&csa.pid_pos, csa.cur_pos);
         csa.cal_speed = 0;
@@ -160,11 +162,7 @@ void app_motor_routine(void)
         csa.set_home = false;
     }
 
-    // disable motor driver reset microstep
     if (!csa.state && !csa.tc_state) {
-        uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
-        int delta = micro & (2 << csa.md_val) ? micro - (4 << csa.md_val) : micro;
-        csa.cur_pos -= delta;
         pos_at_cnt0 = csa.cur_pos;
         __HAL_TIM_SET_COUNTER(&htim2, 0);
     }
@@ -201,8 +199,9 @@ static inline void t_curve_compute(void)
         float delta_v = csa.tc_ac / LOOP_FREQ;
         csa.tc_vc += -sign(csa.tc_vc) * delta_v;
     } else {
-        csa.tc_vc += ((csa.tc_pos >= csa.cal_pos) ? 1 : -1) * v_step;
-        csa.tc_vc = clip(csa.tc_vc, -(float)csa.tc_speed, (float)csa.tc_speed);
+        float target_v = ((csa.tc_pos >= csa.cal_pos) ? 1 : -1) * (float)csa.tc_speed;
+        float delta_v = ((target_v >= csa.tc_vc) ? 1 : -1) * min(v_step, fabsf(target_v - csa.tc_vc));
+        csa.tc_vc += delta_v;
     }
 
     float dt_pos = csa.tc_vc / LOOP_FREQ;
@@ -280,21 +279,6 @@ void limit_det_isr(void)
         return;
     limit_disable = true;
 
-    // When performing detection, it is recommended to set tc_speed smaller and tc_accel larger.
-
-    // To improve the repetition accuracy,
-    // go to the closest microstep value triggered by the limit switch in the last calibration,
-    // and then run the set_home command.
-    if (!csa.lim_cali) {
-        csa.lim_micro = csa.cur_pos & ((4 << csa.md_val) - 1);
-        csa.lim_cali = true;
-        csa.tc_pos = csa.cur_pos;
-
-    } else {
-        uint16_t micro = csa.cur_pos & ((4 << csa.md_val) - 1);
-        micro = micro >= csa.lim_micro ? micro : micro + (4 << csa.md_val);
-        int delta = micro - csa.lim_micro;
-        delta = delta & (2 << csa.md_val) ? delta - (4 << csa.md_val) : delta;
-        csa.tc_pos = csa.cur_pos - delta;
-    }
+    // when performing detection, it is recommended to set tc_speed smaller and tc_accel larger
+    csa.tc_pos = csa.cur_pos;
 }
