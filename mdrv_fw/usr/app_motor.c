@@ -144,7 +144,7 @@ void app_motor_routine(void)
     if (csa.set_home && is_last_0) {
         // after setting home, do not set tc_pos too close to 0 to avoid impacting the mechanical limits
         local_irq_save(flags);
-        pos_at_cnt0 = csa.cal_pos = csa.tc_pos = csa.cur_pos;
+        pos_at_cnt0 = csa.cal_pos = csa.tc_pos = csa.cur_pos = 0;
         pid_i_reset(&csa.pid_pos, csa.cur_pos, 0);
         pid_i_set_target(&csa.pid_pos, csa.cur_pos);
         csa.cal_speed = 0;
