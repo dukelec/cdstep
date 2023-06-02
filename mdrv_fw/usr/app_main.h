@@ -61,7 +61,8 @@ typedef struct {
     regr_t          qxchg_ro[5];
 
     bool            force_trigger_en;
-    uint8_t         _reserved1[7];
+    uint8_t         _reserved1[5];
+    uint16_t        force_protection;
     uint16_t        force_threshold;
 
     //uint8_t       dbg_str_msk;

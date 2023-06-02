@@ -53,7 +53,8 @@ const csa_t csa_dft = {
                 { .offset = offsetof(csa_t, cur_pos), .size = 4 * 2 }
         },
 
-        .force_threshold = 100, // x100
+        .force_protection = 700,    // x100
+        .force_threshold = 100,     // x100
 
         .dbg_raw_dst = { .addr = {0x80, 0x00, 0x00}, .port = 0xa },
         .dbg_raw_msk = 0,
@@ -110,6 +111,8 @@ void load_conf(void)
         csa.tc_pos = 0;
         csa.pid_pos.out_max = csa_dft.pid_pos.out_max;
         csa.pid_pos.out_min = csa_dft.pid_pos.out_min;
+        if (csa.force_protection < csa.force_threshold)
+            csa.force_protection = csa.force_threshold;
     }
 }
 
@@ -226,6 +229,7 @@ void csa_list_show(void)
     d_info("\n"); debug_flush(true);
 
     CSA_SHOW(0, force_trigger_en, "Force trigger enable");
+    CSA_SHOW(0, force_protection, "Set force protection");
     CSA_SHOW(0, force_threshold, "Set force threshold");
     d_debug("\n"); debug_flush(true);
 

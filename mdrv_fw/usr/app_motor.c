@@ -238,19 +238,19 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         csa.cur_pos = pos_at_cnt0 + __HAL_TIM_GET_COUNTER(&htim2) * counter_dir;
 
         if (csa.tc_state) {
-            if (force_rx - force_ofs_const <= -csa.force_threshold * 400) {
+            if (force_rx - force_ofs_const <= -csa.force_protection * 100) {
                 csa.tc_pos = 0;
                 csa.tc_state = 1;
                 limit_disable = true; // avoid trigger limit switch
                 if (!in_force_protect)
-                    d_debug("force protect f: %d @%d\n", force_rx, csa.cur_pos);
+                    d_debug("force protect f: %d dlt: %d @%d\n", force_rx, force_rx - force_ofs_const, csa.cur_pos);
                 in_force_protect = true;
 
             } else if (csa.force_trigger_en && force_rx - force_ofs <= -csa.force_threshold * 100) {
                 csa.force_trigger_en = false;
                 csa.tc_pos = csa.cur_pos;
                 csa.tc_state = 1;
-                d_debug("force trg f: %d @%d\n", force_rx, csa.cur_pos);
+                d_debug("force trg f: %d dlt: %d @%d\n", force_rx, force_rx - force_ofs, csa.cur_pos);
             }
         }
 
