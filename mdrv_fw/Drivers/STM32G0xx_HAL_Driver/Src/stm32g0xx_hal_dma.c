@@ -8,6 +8,18 @@
   *           + Initialization and de-initialization functions
   *           + IO operation functions
   *           + Peripheral State and errors functions
+  *
+  ******************************************************************************
+  * @attention
+  *
+  * Copyright (c) 2018 STMicroelectronics.
+  * All rights reserved.
+  *
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
+  *
+  ******************************************************************************
   @verbatim
   ==============================================================================
                         ##### How to use this driver #####
@@ -26,7 +38,6 @@
        Prior to HAL_DMA_Init the peripheral clock shall be enabled for both DMA & DMAMUX
        thanks to:
       (##) DMA1 or DMA2: __HAL_RCC_DMA1_CLK_ENABLE() or  __HAL_RCC_DMA2_CLK_ENABLE();
-      (##) DMAMUX1:      __HAL_RCC_DMAMUX1_CLK_ENABLE();
 
    (#) Use HAL_DMA_GetState() function to return the DMA state and HAL_DMA_GetError() in case of error
        detection.
@@ -73,17 +84,6 @@
 
   @endverbatim
   ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2018 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
   */
 
 /* Includes ------------------------------------------------------------------*/
@@ -124,8 +124,8 @@ static void DMA_CalcDMAMUXRequestGenBaseAndMask(DMA_HandleTypeDef *hdma);
   */
 
 /** @defgroup DMA_Exported_Functions_Group1 Initialization and de-initialization functions
- *  @brief   Initialization and de-initialization functions
- *
+  *  @brief   Initialization and de-initialization functions
+  *
 @verbatim
  ===============================================================================
              ##### Initialization and de-initialization functions  #####
@@ -185,7 +185,7 @@ HAL_StatusTypeDef HAL_DMA_Init(DMA_HandleTypeDef *hdma)
   }
 #else
   hdma->ChannelIndex = (((uint32_t)hdma->Instance - (uint32_t)DMA1_Channel1) / ((uint32_t)DMA1_Channel2 - (uint32_t)DMA1_Channel1)) << 2U;
-#endif
+#endif /* DMA2 */
 
   /* Change DMA peripheral state */
   hdma->State = HAL_DMA_STATE_BUSY;
@@ -286,7 +286,7 @@ HAL_StatusTypeDef HAL_DMA_DeInit(DMA_HandleTypeDef *hdma)
   }
 #else
   hdma->ChannelIndex = (((uint32_t)hdma->Instance - (uint32_t)DMA1_Channel1) / ((uint32_t)DMA1_Channel2 - (uint32_t)DMA1_Channel1)) << 2U;
-#endif
+#endif /* DMA2 */
 
   /* Reset DMA Channel control register */
   hdma->Instance->CCR = 0U;
@@ -296,7 +296,7 @@ HAL_StatusTypeDef HAL_DMA_DeInit(DMA_HandleTypeDef *hdma)
   hdma->DmaBaseAddress->IFCR = (DMA_ISR_GIF1 << (hdma->ChannelIndex & 0x1CU));
 #else
   __HAL_DMA_CLEAR_FLAG(hdma, (DMA_FLAG_GI1 << (hdma->ChannelIndex & 0x1CU)));
-#endif
+#endif /* DMA2 */
 
   /* Initialize parameters for DMAMUX channel :
      DMAmuxChannel, DMAmuxChannelStatus and DMAmuxChannelStatusMask */
@@ -351,8 +351,8 @@ HAL_StatusTypeDef HAL_DMA_DeInit(DMA_HandleTypeDef *hdma)
   */
 
 /** @defgroup DMA_Exported_Functions_Group2 Input and Output operation functions
- *  @brief   Input and Output operation functions
- *
+  *  @brief   Input and Output operation functions
+  *
 @verbatim
  ===============================================================================
                       #####  IO operation functions  #####
@@ -430,7 +430,8 @@ HAL_StatusTypeDef HAL_DMA_Start(DMA_HandleTypeDef *hdma, uint32_t SrcAddress, ui
   * @param DataLength The length of data to be transferred from source to destination
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_DMA_Start_IT(DMA_HandleTypeDef *hdma, uint32_t SrcAddress, uint32_t DstAddress, uint32_t DataLength)
+HAL_StatusTypeDef HAL_DMA_Start_IT(DMA_HandleTypeDef *hdma, uint32_t SrcAddress, uint32_t DstAddress,
+                                   uint32_t DataLength)
 {
   HAL_StatusTypeDef status = HAL_OK;
 
@@ -537,7 +538,7 @@ HAL_StatusTypeDef HAL_DMA_Abort(DMA_HandleTypeDef *hdma)
     hdma->DmaBaseAddress->IFCR = (DMA_ISR_GIF1 << (hdma->ChannelIndex & 0x1CU));
 #else
     __HAL_DMA_CLEAR_FLAG(hdma, ((DMA_FLAG_GI1) << (hdma->ChannelIndex  & 0x1CU)));
-#endif
+#endif /* DMA2 */
 
     /* Clear the DMAMUX synchro overrun flag */
     hdma->DMAmuxChannelStatus->CFR = hdma->DMAmuxChannelStatusMask;
@@ -595,7 +596,7 @@ HAL_StatusTypeDef HAL_DMA_Abort_IT(DMA_HandleTypeDef *hdma)
     hdma->DmaBaseAddress->IFCR = (DMA_ISR_GIF1 << (hdma->ChannelIndex & 0x1CU));
 #else
     __HAL_DMA_CLEAR_FLAG(hdma, ((DMA_FLAG_GI1) << (hdma->ChannelIndex & 0x1CU)));
-#endif
+#endif /* DMA2 */
 
     /* Clear the DMAMUX synchro overrun flag */
     hdma->DMAmuxChannelStatus->CFR = hdma->DMAmuxChannelStatusMask;
@@ -633,7 +634,8 @@ HAL_StatusTypeDef HAL_DMA_Abort_IT(DMA_HandleTypeDef *hdma)
   * @param Timeout Timeout duration.
   * @retval HAL status
   */
-HAL_StatusTypeDef HAL_DMA_PollForTransfer(DMA_HandleTypeDef *hdma, HAL_DMA_LevelCompleteTypeDef CompleteLevel, uint32_t Timeout)
+HAL_StatusTypeDef HAL_DMA_PollForTransfer(DMA_HandleTypeDef *hdma, HAL_DMA_LevelCompleteTypeDef CompleteLevel,
+                                          uint32_t Timeout)
 {
   uint32_t temp;
   uint32_t tickstart;
@@ -710,7 +712,7 @@ HAL_StatusTypeDef HAL_DMA_PollForTransfer(DMA_HandleTypeDef *hdma, HAL_DMA_Level
 
       return HAL_ERROR;
     }
-#endif
+#endif /* DMA2 */
     /* Check for the Timeout */
     if (Timeout != HAL_MAX_DELAY)
     {
@@ -764,7 +766,7 @@ HAL_StatusTypeDef HAL_DMA_PollForTransfer(DMA_HandleTypeDef *hdma, HAL_DMA_Level
     hdma->DmaBaseAddress->IFCR = (DMA_FLAG_TC1 << (hdma->ChannelIndex & 0x1CU));
 #else
     __HAL_DMA_CLEAR_FLAG(hdma, (DMA_FLAG_TC1 << (hdma->ChannelIndex & 0x1CU)));
-#endif
+#endif /* DMA2 */
 
     /* Process unlocked */
     __HAL_UNLOCK(hdma);
@@ -780,7 +782,7 @@ HAL_StatusTypeDef HAL_DMA_PollForTransfer(DMA_HandleTypeDef *hdma, HAL_DMA_Level
     hdma->DmaBaseAddress->IFCR = (DMA_FLAG_HT1 << (hdma->ChannelIndex & 0x1CU));
 #else
     __HAL_DMA_CLEAR_FLAG(hdma, (DMA_FLAG_HT1 << (hdma->ChannelIndex & 0x1CU)));
-#endif
+#endif /* DMA2 */
   }
 
   return HAL_OK;
@@ -798,7 +800,7 @@ void HAL_DMA_IRQHandler(DMA_HandleTypeDef *hdma)
   uint32_t flag_it = hdma->DmaBaseAddress->ISR;
 #else
   uint32_t flag_it = DMA1->ISR;
-#endif
+#endif /* DMA2 */
   uint32_t source_it = hdma->Instance->CCR;
 
   /* Half Transfer Complete Interrupt management ******************************/
@@ -815,7 +817,7 @@ void HAL_DMA_IRQHandler(DMA_HandleTypeDef *hdma)
       hdma->DmaBaseAddress->IFCR = DMA_ISR_HTIF1 << (hdma->ChannelIndex & 0x1CU);
 #else
       __HAL_DMA_CLEAR_FLAG(hdma, (DMA_FLAG_HT1 << (hdma->ChannelIndex & 0x1CU)));
-#endif
+#endif /* DMA2 */
 
       /* DMA peripheral state is not updated in Half Transfer */
       /* but in Transfer Complete case */
@@ -864,7 +866,7 @@ void HAL_DMA_IRQHandler(DMA_HandleTypeDef *hdma)
     hdma->DmaBaseAddress->IFCR = (DMA_ISR_GIF1 << (hdma->ChannelIndex & 0x1CU));
 #else
     __HAL_DMA_CLEAR_FLAG(hdma, (DMA_FLAG_GI1 << (hdma->ChannelIndex & 0x1CU)));
-#endif
+#endif /* DMA2 */
 
     /* Update error code */
     hdma->ErrorCode = HAL_DMA_ERROR_TE;
@@ -894,7 +896,7 @@ void HAL_DMA_IRQHandler(DMA_HandleTypeDef *hdma)
   *             the configuration information for the specified DMA Channel.
   * @param CallbackID User Callback identifier
   *                   a HAL_DMA_CallbackIDTypeDef ENUM as parameter.
-  * @param pCallback Pointer to private callbacsk function which has pointer to
+  * @param pCallback Pointer to private callback function which has pointer to
   *                  a DMA_HandleTypeDef structure as parameter.
   * @retval HAL status
   */
@@ -1006,8 +1008,8 @@ HAL_StatusTypeDef HAL_DMA_UnRegisterCallback(DMA_HandleTypeDef *hdma, HAL_DMA_Ca
 
 
 /** @defgroup DMA_Exported_Functions_Group3 Peripheral State and Errors functions
- *  @brief    Peripheral State and Errors functions
- *
+  *  @brief    Peripheral State and Errors functions
+  *
 @verbatim
  ===============================================================================
             ##### Peripheral State and Errors functions #####
@@ -1082,7 +1084,7 @@ static void DMA_SetConfig(DMA_HandleTypeDef *hdma, uint32_t SrcAddress, uint32_t
   hdma->DmaBaseAddress->IFCR = (DMA_ISR_GIF1 << (hdma->ChannelIndex & 0x1CU));
 #else
   __HAL_DMA_CLEAR_FLAG(hdma, (DMA_FLAG_GI1 << (hdma->ChannelIndex & 0x1CU)));
-#endif
+#endif /* DMA2 */
 
   /* Configure DMA Channel data length */
   hdma->Instance->CNDTR = DataLength;
@@ -1143,7 +1145,7 @@ static void DMA_CalcDMAMUXChannelBaseAndMask(DMA_HandleTypeDef *hdma)
 
   /* Prepare channel_number used for DMAmuxChannelStatusMask computation */
   channel_number = (((uint32_t)hdma->Instance & 0xFFU) - 8U) / 20U;
-#endif
+#endif /* DMA2 */
 
   /* Initialize the field DMAmuxChannelStatus to DMAMUX1_ChannelStatus base */
   hdma->DMAmuxChannelStatus = DMAMUX1_ChannelStatus;
@@ -1189,4 +1191,3 @@ static void DMA_CalcDMAMUXRequestGenBaseAndMask(DMA_HandleTypeDef *hdma)
   * @}
   */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

@@ -6,13 +6,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2018 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2018 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -116,10 +115,10 @@ typedef struct
 #define HAL_DMAMUX1_SYNC_DMAMUX1_CH3_EVT  LL_DMAMUX_SYNC_DMAMUX_CH3      /*!< Synchronization signal from DMAMUX channel3 Event */
 #if defined(LPTIM1)
 #define HAL_DMAMUX1_SYNC_LPTIM1_OUT       LL_DMAMUX_SYNC_LPTIM1_OUT      /*!< Synchronization signal from LPTIM1 Output */
-#endif
+#endif /* LPTIM1 */
 #if defined(LPTIM2)
 #define HAL_DMAMUX1_SYNC_LPTIM2_OUT       LL_DMAMUX_SYNC_LPTIM2_OUT      /*!< Synchronization signal from LPTIM2 Output */
-#endif
+#endif /* LPTIM2 */
 #define HAL_DMAMUX1_SYNC_TIM14_OC         LL_DMAMUX_SYNC_TIM14_OC        /*!< Synchronization signal from TIM14 OC */
 
 #define HAL_DMAMUX1_MAX_SYNC              HAL_DMAMUX1_SYNC_TIM14_OC
@@ -164,10 +163,10 @@ typedef struct
 #define HAL_DMAMUX1_REQ_GEN_DMAMUX1_CH3_EVT  LL_DMAMUX_REQ_GEN_DMAMUX_CH3    /*!< Request signal generation from DMAMUX channel3 Event */
 #if defined(LPTIM1)
 #define HAL_DMAMUX1_REQ_GEN_LPTIM1_OUT       LL_DMAMUX_REQ_GEN_LPTIM1_OUT    /*!< Request signal generation from LPTIM1 Output */
-#endif
+#endif /* LPTIM1 */
 #if defined(LPTIM2)
 #define HAL_DMAMUX1_REQ_GEN_LPTIM2_OUT       LL_DMAMUX_REQ_GEN_LPTIM2_OUT    /*!< Request signal generation from LPTIM2 Output */
-#endif
+#endif /* LPTIM2 */
 #define HAL_DMAMUX1_REQ_GEN_TIM14_OC         LL_DMAMUX_REQ_GEN_TIM14_OC      /*!< Request signal generation from TIM14 OC */
 
 #define HAL_DMAMUX1_MAX_REQ_GEN              HAL_DMAMUX1_REQ_GEN_TIM14_OC
@@ -228,8 +227,8 @@ void              HAL_DMAEx_MUX_IRQHandler(DMA_HandleTypeDef *hdma);
 /* Private macros ------------------------------------------------------------*/
 /** @defgroup DMAEx_Private_Macros DMAEx Private Macros
   * @brief    DMAEx private macros
- * @{
- */
+  * @{
+  */
 
 #define IS_DMAMUX_SYNC_SIGNAL_ID(SIGNAL_ID)             (((SIGNAL_ID) == HAL_DMAMUX1_SYNC_EXTI0) || \
                                                          (((SIGNAL_ID) >= HAL_DMAMUX1_SYNC_EXTI1) && \
@@ -277,4 +276,3 @@ void              HAL_DMAEx_MUX_IRQHandler(DMA_HandleTypeDef *hdma);
 
 #endif /* STM32G0xx_HAL_DMA_EX_H */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

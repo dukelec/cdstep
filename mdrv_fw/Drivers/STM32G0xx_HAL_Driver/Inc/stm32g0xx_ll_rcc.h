@@ -6,14 +6,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2018 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2018 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
+  * This software is licensed under terms that can be found in the LICENSE file in
+  * the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   ******************************************************************************
   */
 
@@ -495,7 +493,7 @@ typedef struct
 
 /**
   * @}
-*/
+  */
 #endif /* CEC */
 
 #if defined(FDCAN1) || defined(FDCAN2)
@@ -508,7 +506,7 @@ typedef struct
 
 /**
   * @}
-*/
+  */
 #endif /* FDCAN1 || FDCAN2 */
 
 #if defined(RNG)
@@ -857,7 +855,7 @@ typedef struct
   */
 #define __LL_RCC_CALC_PLLCLK_FREQ(__INPUTFREQ__, __PLLM__, __PLLN__, __PLLR__)   \
   ((__INPUTFREQ__) * (__PLLN__) / ((((__PLLM__)>> RCC_PLLCFGR_PLLM_Pos) + 1U)) / \
-                   (((__PLLR__) >> RCC_PLLCFGR_PLLR_Pos) + 1U))
+   (((__PLLR__) >> RCC_PLLCFGR_PLLR_Pos) + 1U))
 
 /**
   * @brief  Helper macro to calculate the PLLPCLK frequency used on I2S domain
@@ -910,7 +908,7 @@ typedef struct
   */
 #define __LL_RCC_CALC_PLLCLK_I2S1_FREQ(__INPUTFREQ__, __PLLM__, __PLLN__, __PLLP__)  \
   ((__INPUTFREQ__)  * (__PLLN__) / ((((__PLLM__)>> RCC_PLLCFGR_PLLM_Pos) + 1U)) /    \
-                   (((__PLLP__) >> RCC_PLLCFGR_PLLP_Pos) + 1U))
+   (((__PLLP__) >> RCC_PLLCFGR_PLLP_Pos) + 1U))
 
 #if defined(RCC_CCIPR2_I2S2SEL)
 /**
@@ -964,7 +962,7 @@ typedef struct
   */
 #define __LL_RCC_CALC_PLLCLK_I2S2_FREQ(__INPUTFREQ__, __PLLM__, __PLLN__, __PLLP__)  \
   ((__INPUTFREQ__)  * (__PLLN__) / ((((__PLLM__)>> RCC_PLLCFGR_PLLM_Pos) + 1U)) /    \
-                   (((__PLLP__) >> RCC_PLLCFGR_PLLP_Pos) + 1U))
+   (((__PLLP__) >> RCC_PLLCFGR_PLLP_Pos) + 1U))
 #endif /* RCC_CCIPR2_I2S2SEL */
 
 /**
@@ -1018,7 +1016,7 @@ typedef struct
   */
 #define __LL_RCC_CALC_PLLCLK_ADC_FREQ(__INPUTFREQ__, __PLLM__, __PLLN__, __PLLP__)  \
   ((__INPUTFREQ__) * (__PLLN__) / ((((__PLLM__)>> RCC_PLLCFGR_PLLM_Pos) + 1U)) /    \
-                   (((__PLLP__) >> RCC_PLLCFGR_PLLP_Pos) + 1U))
+   (((__PLLP__) >> RCC_PLLCFGR_PLLP_Pos) + 1U))
 
 #if defined(RNG)
 /**
@@ -1048,7 +1046,7 @@ typedef struct
   */
 #define __LL_RCC_CALC_PLLCLK_RNG_FREQ(__INPUTFREQ__, __PLLM__, __PLLN__, __PLLQ__)   \
   ((__INPUTFREQ__) * (__PLLN__) / ((((__PLLM__)>> RCC_PLLCFGR_PLLM_Pos) + 1U)) /     \
-                   (((__PLLQ__) >> RCC_PLLCFGR_PLLQ_Pos) + 1U))
+   (((__PLLQ__) >> RCC_PLLCFGR_PLLQ_Pos) + 1U))
 #endif /* RNG */
 
 #if defined(RCC_PLLQ_SUPPORT)
@@ -1079,7 +1077,7 @@ typedef struct
   */
 #define __LL_RCC_CALC_PLLCLK_TIM1_FREQ(__INPUTFREQ__, __PLLM__, __PLLN__, __PLLQ__) \
   ((__INPUTFREQ__) * (__PLLN__) / ((((__PLLM__)>> RCC_PLLCFGR_PLLM_Pos) + 1U)) /    \
-                   (((__PLLQ__) >> RCC_PLLCFGR_PLLQ_Pos) + 1U))
+   (((__PLLQ__) >> RCC_PLLCFGR_PLLQ_Pos) + 1U))
 #if defined(TIM15)
 /**
   * @brief  Helper macro to calculate the PLLQCLK frequency used on TIM15 domain
@@ -1108,7 +1106,7 @@ typedef struct
   */
 #define __LL_RCC_CALC_PLLCLK_TIM15_FREQ(__INPUTFREQ__, __PLLM__, __PLLN__, __PLLQ__)  \
   ((__INPUTFREQ__) * (__PLLN__) / ((((__PLLM__)>> RCC_PLLCFGR_PLLM_Pos) + 1U)) /      \
-                   (((__PLLQ__) >> RCC_PLLCFGR_PLLQ_Pos) + 1U))
+   (((__PLLQ__) >> RCC_PLLCFGR_PLLQ_Pos) + 1U))
 #endif /* TIM15 */
 #endif /* RCC_PLLQ_SUPPORT */
 
@@ -1140,7 +1138,7 @@ typedef struct
   */
 #define __LL_RCC_CALC_PLLCLK_FDCAN_FREQ(__INPUTFREQ__, __PLLM__, __PLLN__, __PLLQ__) \
   ((__INPUTFREQ__) * (__PLLN__) / ((((__PLLM__)>> RCC_PLLCFGR_PLLM_Pos) + 1U)) /     \
-                   (((__PLLQ__) >> RCC_PLLCFGR_PLLQ_Pos) + 1U))
+   (((__PLLQ__) >> RCC_PLLCFGR_PLLQ_Pos) + 1U))
 #endif /* FDCAN1 || FDCAN2 */
 
 #if defined(STM32G0C1xx) || defined(STM32G0B1xx) || defined(STM32G0B0xx)
@@ -1171,7 +1169,7 @@ typedef struct
   */
 #define __LL_RCC_CALC_PLLCLK_USB_FREQ(__INPUTFREQ__, __PLLM__, __PLLN__, __PLLQ__) \
   ((__INPUTFREQ__) * (__PLLN__) / ((((__PLLM__)>> RCC_PLLCFGR_PLLM_Pos) + 1U)) /   \
-                   (((__PLLQ__) >> RCC_PLLCFGR_PLLQ_Pos) + 1U))
+   (((__PLLQ__) >> RCC_PLLCFGR_PLLQ_Pos) + 1U))
 #endif /* STM32G0C1xx || STM32G0B1xx || STM32G0B0xx */
 
 /**
@@ -2083,7 +2081,7 @@ __STATIC_INLINE void LL_RCC_SetUSBClockSource(uint32_t USBxSource)
 }
 #endif /* STM32G0C1xx || STM32G0B1xx || STM32G0B0xx */
 
-#if defined (FDCAN1) || defined (FDCAN2) 
+#if defined (FDCAN1) || defined (FDCAN2)
 /**
   * @brief  Configure FDCAN clock source
   * @rmtoll CCIPR2        FDCANSEL        LL_RCC_SetFDCANClockSource
@@ -3145,6 +3143,16 @@ __STATIC_INLINE void LL_RCC_PLL_DisableDomain_ADC(void)
 }
 
 /**
+  * @brief  Check if PLL output mapped on ADC domain clock is enabled
+  * @rmtoll PLLCFGR      PLLPEN        LL_RCC_PLL_IsEnabledDomain_ADC
+  * @retval State of bit (1 or 0).
+  */
+__STATIC_INLINE uint32_t LL_RCC_PLL_IsEnabledDomain_ADC(void)
+{
+  return ((READ_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLPEN) == (RCC_PLLCFGR_PLLPEN)) ? 1UL : 0UL);
+}
+
+/**
   * @brief  Enable PLL output mapped on I2S domain clock
   * @rmtoll PLLCFGR      PLLPEN        LL_RCC_PLL_EnableDomain_I2S1
   * @note   User shall check that PLL enable is not done through
@@ -3185,6 +3193,16 @@ __STATIC_INLINE void LL_RCC_PLL_DisableDomain_I2S1(void)
   CLEAR_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLPEN);
 }
 
+/**
+  * @brief  Check if PLL output mapped on I2S1 domain clock is enabled
+  * @rmtoll PLLCFGR      PLLPEN        LL_RCC_PLL_IsEnabledDomain_I2S1
+  * @retval State of bit (1 or 0).
+  */
+__STATIC_INLINE uint32_t LL_RCC_PLL_IsEnabledDomain_I2S1(void)
+{
+  return ((READ_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLPEN) == (RCC_PLLCFGR_PLLPEN)) ? 1UL : 0UL);
+}
+
 #if defined(RCC_CCIPR2_I2S2SEL)
 /**
   * @brief  Disable PLL output mapped on I2S2 domain clock
@@ -3199,6 +3217,16 @@ __STATIC_INLINE void LL_RCC_PLL_DisableDomain_I2S1(void)
 __STATIC_INLINE void LL_RCC_PLL_DisableDomain_I2S2(void)
 {
   CLEAR_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLPEN);
+}
+
+/**
+  * @brief  Check if PLL output mapped on I2S2 domain clock is enabled
+  * @rmtoll PLLCFGR      PLLPEN        LL_RCC_PLL_IsEnabledDomain_I2S2
+  * @retval State of bit (1 or 0).
+  */
+__STATIC_INLINE uint32_t LL_RCC_PLL_IsEnabledDomain_I2S2(void)
+{
+  return ((READ_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLPEN) == (RCC_PLLCFGR_PLLPEN)) ? 1UL : 0UL);
 }
 #endif /* RCC_CCIPR2_I2S2SEL */
 
@@ -3229,6 +3257,16 @@ __STATIC_INLINE void LL_RCC_PLL_DisableDomain_RNG(void)
 {
   CLEAR_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLQEN);
 }
+
+/**
+  * @brief  Check if PLL output mapped on RNG domain clock is enabled
+  * @rmtoll PLLCFGR      PLLQEN        LL_RCC_PLL_IsEnabledDomain_RNG
+  * @retval State of bit (1 or 0).
+  */
+__STATIC_INLINE uint32_t LL_RCC_PLL_IsEnabledDomain_RNG(void)
+{
+  return ((READ_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLQEN) == (RCC_PLLCFGR_PLLQEN)) ? 1UL : 0UL);
+}
 #endif /* RNG */
 
 #if defined(FDCAN1) || defined(FDCAN2)
@@ -3257,6 +3295,16 @@ __STATIC_INLINE void LL_RCC_PLL_EnableDomain_FDCAN(void)
 __STATIC_INLINE void LL_RCC_PLL_DisableDomain_FDCAN(void)
 {
   CLEAR_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLQEN);
+}
+
+/**
+  * @brief  Check if PLL output mapped on FDCAN domain clock is enabled
+  * @rmtoll PLLCFGR      PLLQEN        LL_RCC_PLL_IsEnabledDomain_FDCAN
+  * @retval State of bit (1 or 0).
+  */
+__STATIC_INLINE uint32_t LL_RCC_PLL_IsEnabledDomain_FDCAN(void)
+{
+  return ((READ_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLQEN) == (RCC_PLLCFGR_PLLQEN)) ? 1UL : 0UL);
 }
 #endif /* FDCAN1 || FDCAN2 */
 
@@ -3287,6 +3335,16 @@ __STATIC_INLINE void LL_RCC_PLL_DisableDomain_USB(void)
 {
   CLEAR_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLQEN);
 }
+
+/**
+  * @brief  Check if PLL output mapped on USB domain clock is enabled
+  * @rmtoll PLLCFGR      PLLQEN        LL_RCC_PLL_IsEnabledDomain_USB
+  * @retval State of bit (1 or 0).
+  */
+__STATIC_INLINE uint32_t LL_RCC_PLL_IsEnabledDomain_USB(void)
+{
+  return ((READ_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLQEN) == (RCC_PLLCFGR_PLLQEN)) ? 1UL : 0UL);
+}
 #endif /* STM32G0C1xx || STM32G0B1xx || STM32G0B0xx */
 
 #if defined(RCC_PLLQ_SUPPORT)
@@ -3315,6 +3373,16 @@ __STATIC_INLINE void LL_RCC_PLL_EnableDomain_TIM1(void)
 __STATIC_INLINE void LL_RCC_PLL_DisableDomain_TIM1(void)
 {
   CLEAR_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLQEN);
+}
+
+/**
+  * @brief  Check if PLL output mapped on TIM1 domain clock is enabled
+  * @rmtoll PLLCFGR      PLLQEN        LL_RCC_PLL_IsEnabledDomain_TIM1
+  * @retval State of bit (1 or 0).
+  */
+__STATIC_INLINE uint32_t LL_RCC_PLL_IsEnabledDomain_TIM1(void)
+{
+  return ((READ_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLQEN) == (RCC_PLLCFGR_PLLQEN)) ? 1UL : 0UL);
 }
 #endif /* RCC_PLLQ_SUPPORT */
 
@@ -3345,6 +3413,16 @@ __STATIC_INLINE void LL_RCC_PLL_DisableDomain_TIM15(void)
 {
   CLEAR_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLQEN);
 }
+
+/**
+  * @brief  Check if PLL output mapped on TIM15 domain clock is enabled
+  * @rmtoll PLLCFGR      PLLQEN        LL_RCC_PLL_IsEnabledDomain_TIM15
+  * @retval State of bit (1 or 0).
+  */
+__STATIC_INLINE uint32_t LL_RCC_PLL_IsEnabledDomain_TIM15(void)
+{
+  return ((READ_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLQEN) == (RCC_PLLCFGR_PLLQEN)) ? 1UL : 0UL);
+}
 #endif /* RCC_PLLQ_SUPPORT && TIM15 */
 
 /**
@@ -3368,6 +3446,16 @@ __STATIC_INLINE void LL_RCC_PLL_EnableDomain_SYS(void)
 __STATIC_INLINE void LL_RCC_PLL_DisableDomain_SYS(void)
 {
   CLEAR_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLREN);
+}
+
+/**
+  * @brief  Check if PLL output mapped on SYSCLK domain clock is enabled
+  * @rmtoll PLLCFGR      PLLREN        LL_RCC_PLL_IsEnabledDomain_SYS
+  * @retval State of bit (1 or 0).
+  */
+__STATIC_INLINE uint32_t LL_RCC_PLL_IsEnabledDomain_SYS(void)
+{
+  return ((READ_BIT(RCC->PLLCFGR, RCC_PLLCFGR_PLLREN) == (RCC_PLLCFGR_PLLREN)) ? 1UL : 0UL);
 }
 
 /**
@@ -3883,4 +3971,3 @@ uint32_t    LL_RCC_GetUSBClockFreq(uint32_t USBxSource);
 
 #endif /* STM32G0xx_LL_RCC_H */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
