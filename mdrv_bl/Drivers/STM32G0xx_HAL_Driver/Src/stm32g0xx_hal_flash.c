@@ -73,14 +73,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2018 STMicroelectronics.
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2018 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
+  * This software is licensed under terms that can be found in the LICENSE file in
+  * the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   ******************************************************************************
   */
 
@@ -103,8 +101,8 @@
 /* Private macros ------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 /** @defgroup FLASH_Private_Variables FLASH Private Variables
- * @{
- */
+  * @{
+  */
 /**
   * @brief  Variable used for Program/Erase sectors under interruption
   */
@@ -122,8 +120,8 @@ FLASH_ProcessTypeDef pFlash  = {.Lock = HAL_UNLOCKED, \
 
 /* Private function prototypes -----------------------------------------------*/
 /** @defgroup FLASH_Private_Functions FLASH Private Functions
- * @{
- */
+  * @{
+  */
 static void          FLASH_Program_DoubleWord(uint32_t Address, uint64_t Data);
 static void          FLASH_Program_Fast(uint32_t Address, uint32_t DataAddress);
 /**
@@ -136,8 +134,8 @@ static void          FLASH_Program_Fast(uint32_t Address, uint32_t DataAddress);
   */
 
 /** @defgroup FLASH_Exported_Functions_Group1 Programming operation functions
- *  @brief   Programming operation functions
- *
+  *  @brief   Programming operation functions
+  *
 @verbatim
  ===============================================================================
                   ##### Programming operation functions #####
@@ -157,7 +155,9 @@ static void          FLASH_Program_Fast(uint32_t Address, uint32_t DataAddress);
   * @param  Address Specifies the address to be programmed.
   * @param  Data Specifies the data to be programmed
   *               This parameter is the data for the double word program and the address where
-  *               are stored the data for the row fast program.
+  *               are stored the data for the row fast program depending on the TypeProgram:
+  *               TypeProgram = FLASH_TYPEPROGRAM_DOUBLEWORD (64-bit)
+  *               TypeProgram = FLASH_TYPEPROGRAM_FAST (32-bit).
   *
   * @retval HAL_StatusTypeDef HAL Status
   */
@@ -217,7 +217,9 @@ HAL_StatusTypeDef HAL_FLASH_Program(uint32_t TypeProgram, uint32_t Address, uint
   * @param  Address Specifies the address to be programmed.
   * @param  Data Specifies the data to be programmed
   *               This parameter is the data for the double word program and the address where
-  *               are stored the data for the row fast program.
+  *               are stored the data for the row fast program depending on the TypeProgram:
+  *               TypeProgram = FLASH_TYPEPROGRAM_DOUBLEWORD (64-bit)
+  *               TypeProgram = FLASH_TYPEPROGRAM_FAST (32-bit).
   *
   * @retval HAL Status
   */
@@ -410,8 +412,8 @@ __weak void HAL_FLASH_OperationErrorCallback(uint32_t ReturnValue)
   */
 
 /** @defgroup FLASH_Exported_Functions_Group2 Peripheral Control functions
- *  @brief   Management functions
- *
+  *  @brief   Management functions
+  *
 @verbatim
  ===============================================================================
                       ##### Peripheral Control functions #####
@@ -531,8 +533,8 @@ HAL_StatusTypeDef HAL_FLASH_OB_Launch(void)
   */
 
 /** @defgroup FLASH_Exported_Functions_Group3 Peripheral State and Errors functions
- *  @brief   Peripheral Errors functions
- *
+  *  @brief   Peripheral Errors functions
+  *
 @verbatim
  ===============================================================================
                 ##### Peripheral Errors functions #####
@@ -598,7 +600,7 @@ HAL_StatusTypeDef FLASH_WaitForLastOperation(uint32_t Timeout)
   error = (FLASH_SR_BSY1 | FLASH_SR_BSY2);
 #else
   error = FLASH_SR_BSY1;
-#endif
+#endif /* FLASH_DBANK_SUPPORT */
 
   while ((FLASH->SR & error) != 0x00U)
   {
@@ -694,7 +696,7 @@ static __RAM_FUNC void FLASH_Program_Fast(uint32_t Address, uint32_t DataAddress
   while ((FLASH->SR & (FLASH_SR_BSY1 | FLASH_SR_BSY2)) != 0x00U)
 #else
   while ((FLASH->SR & FLASH_SR_BSY1) != 0x00U)
-#endif
+#endif /* FLASH_DBANK_SUPPORT */
   {
   }
 
@@ -716,4 +718,3 @@ static __RAM_FUNC void FLASH_Program_Fast(uint32_t Address, uint32_t DataAddress
   * @}
   */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
