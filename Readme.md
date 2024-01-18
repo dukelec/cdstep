@@ -1,4 +1,4 @@
-CD-MDRV-STEP Introduction
+CDSTEP Introduction
 =======================================
 
 中文說明 (Chinese): [./Readme_zh.md](./Readme_zh.md)
@@ -9,7 +9,7 @@ RS-485 wire housing: Molex 5264 (4 pin)
 
 Download this project:
 ```
-git clone --recurse-submodules https://github.com/dukelec/stepper_motor_controller.git
+git clone --recurse-submodules https://github.com/dukelec/cdstep.git
 ```
 
 ## GUI Tool
@@ -39,26 +39,26 @@ Plot details, IAP upgrade, data import/export (including registers, logs, plots)
 
 ## Protocol
 
-MDRV-STEP is an open source stepper motor controller, it uses RS485 interface, the default baud rate is 115200 bps, the highest > 10 Mbps, the default address is 0xfe.
+CDSTEP is an open source stepper motor controller, it uses RS485 interface, the default baud rate is 115200 bps, the highest > 10 Mbps, the default address is 0xfe.
 
 The underlying protocol is CDBUS, and its frame format is  
 `src, dst, len, [payload], crc_l, crc_h`
 
 It contains 3 bytes of header, data and last 2 bytes of CRC (same as ModBus CRC).  
-For details of CDBUS protocol, please refer to: https://github.com/dukelec/cdbus_ip
+For details of CDBUS protocol, please refer to: https://cdbus.org
 
 The Payload part is the CDNET protocol and supports both CDNET L0 and L1 versions.  
 For details of CDNET protocol, please refer to: https://github.com/dukelec/cdnet
 
 
 CDNET mainly refers to the concept of UDP in TCP/IP.  
-For example, in the simplest CDNET L0 protocol, the format of sending a byte of data 0x00 from the default port of the host to port 1 of MDRV:
+For example, in the simplest CDNET L0 protocol, the format of sending a byte of data 0x00 from the default port of the host to port 1 of CDSTEP:
 
 `01 00`
 
 The first byte is the target port number, followed by the data.
 
-In the above example, the complete CDBUS protocol frame is (default host address is 0, MDRV is 0xfe):
+In the above example, the complete CDBUS protocol frame is (default host address is 0, CDSTEP is 0xfe):
 
 ```
 00 fe 02  01 00  crc_l crc_h
@@ -67,13 +67,13 @@ In the above example, the complete CDBUS protocol frame is (default host address
 In the above example, port 1 is related to device information. The port number can be regarded as the main command number.
 The first byte of data is agreed to be the sub-command number, and the sub-command number 0x00 is to read the device information.
 
-MDRV has 4 ports to receive commands, which are:
+CDSTEP has 4 ports to receive commands, which are:
 
 ### Port 1: Device information
 
 The only subcommand number 0 is used to query information.
 
-Return 0x80 + device information string, such as `M: mdrv-step; S: 23ff7660d405535353733034; SW: v1.1`.
+Return 0x80 + device information string, such as `M: cdstep; S: 23ff7660d405535353733034; SW: v1.1`.
 
 ### Port 5: Parameter table read and write
 
@@ -168,7 +168,7 @@ After the Bootloader is powered on, first use the default baud rate of 115200. I
 If the command is still not received after another second, the APP firmware will be executed.
 Bootloader and APP share the beginning of the csa configuration, which contains the baud rate set by the user.
 
-If you don't know the current ID number of MDRV, you can send an info command to the broadcast address 0xff to search for it.
+If you don't know the current ID number of CDSTEP, you can send an info command to the broadcast address 0xff to search for it.
 
 The current MCU Flash is 128K in total, each page size is 2K, the first 24K stores the Bootloader, the last 2K stores the csa parameter table, and the rest are APP.
 
@@ -182,5 +182,5 @@ If it is a fixed period, such as FOC motor, you can add 1 to a variable (such as
 But for the stepper motor control, the period is not fixed, so the time information and other observed variables should be recorded together every time.
 
 When debugging with plot, it is recommended to set the baud rate of the device higher.  
-If the amount of data is large, MDRV will store continuous information in the buffer. After the buffer is full, it will wait for the buffer to be completely emptied before continuing, which can ensure the continuity of the data to the greatest extent and avoid loss of details.
+If the amount of data is large, CDSTEP will store continuous information in the buffer. After the buffer is full, it will wait for the buffer to be completely emptied before continuing, which can ensure the continuity of the data to the greatest extent and avoid loss of details.
 

@@ -1,4 +1,4 @@
-CD-MDRV-STEP 簡介
+CDSTEP 簡介
 =======================================
 
 <img src="doc/cdstep_v4.jpg">
@@ -7,7 +7,7 @@ RS-485 插頭型號: Molex 5264 (4 pin)
 
 下載項目：
 ```
-git clone --recurse-submodules https://github.com/dukelec/stepper_motor_controller.git
+git clone --recurse-submodules https://github.com/dukelec/cdstep.git
 ```
 
 ## 圖形配置工具
@@ -37,26 +37,26 @@ CDBUS GUI Tool: https://github.com/dukelec/cdbus_gui
 
 ## 協議
 
-MDRV-STEP 是一個開源步進電機控制器，它使用 RS485 接口，默認波特率爲 115200 bps, 最高 > 10 Mbps，默認地址爲 0xfe.
+CDSTEP 是一個開源步進電機控制器，它使用 RS485 接口，默認波特率爲 115200 bps, 最高 > 10 Mbps，默認地址爲 0xfe.
 
 最底層協議爲 CDBUS，其幀格式爲：  
 `src, dst, len, [payload], crc_l, crc_h`
 
 由 3 字節頭、數據 和 最後 2 字節的 CRC 結尾（算法同 ModBus RTU 的 CRC）。  
-CDBUS 協議具體參見： https://github.com/dukelec/cdbus_ip
+CDBUS 協議具體參見： https://cdbus.org
 
 Payload 部分爲 CDNET 協議，同時支持 CDNET L0 和 L1 兩個版本。  
 CDNET 協議具體參見： https://github.com/dukelec/cdnet
 
 
 CDNET 和 TCP/IP 中的 UDP 的概念比較類似，主要參考 UDP 的端口號的概念。  
-譬如最簡單的 CDNET L0 協議，從主機默認端口發送一個字節數據 0x00 到 MDRV 的 1 號端口的格式：
+譬如最簡單的 CDNET L0 協議，從主機默認端口發送一個字節數據 0x00 到 CDSTEP 的 1 號端口的格式：
 
 `01 00`
 
 第一個字節是目標端口號，然後跟數據即可。
 
-以上示範，完整的 CDBUS 協議幀爲（主機地址默認爲 0，MDRV 爲 0xfe）：
+以上示範，完整的 CDBUS 協議幀爲（主機地址默認爲 0，CDSTEP 爲 0xfe）：
 
 ```
 00 fe 02  01 00  crc_l crc_h
@@ -65,13 +65,13 @@ CDNET 和 TCP/IP 中的 UDP 的概念比較類似，主要參考 UDP 的端口�
 以上示範，端口 1 是設備信息相關的，端口號可以看做 主命令號，首字節數據約定爲 子命令號，
 子命令號 0x00 是讀設備信息。
 
-MDRV 一共有 4 個端口接收指令，分別是：
+CDSTEP 一共有 4 個端口接收指令，分別是：
 
 ### 端口 1: 設備信息
 
 唯一一個子命令號 0 是用來查詢信息。
 
-返回 0x80 + 設備信息字符串，譬如 `M: mdrv-step; S: 23ff7660d405535353733034; SW: v1.1`.
+返回 0x80 + 設備信息字符串，譬如 `M: cdstep; S: 23ff7660d405535353733034; SW: v1.1`.
 
 ### 端口 5: 參數表讀寫
 
@@ -163,7 +163,7 @@ cal crc: 0x10, addr_32, len_32  | return [0x80, crc_16] # modbus crc
 
 Bootloader 上電後，先使用默認波特率 115200，如果收到主機設置 `keep_in_bl` 的命令就保持此波特率，如果一秒鍾內沒有收到該命令，則切換到 Flash 中保存的波特率繼續等待命令，如果再過一秒依然沒收到命令，則跳轉執行 APP 固件。Bootloader 和 APP 共享 csa 配置的開頭部分，其中包含了用戶設置的波特率。
 
-如果不知道 MDRV 當前的 ID 號，可以發送 info 命令到廣播地址 0xff 進行搜尋。
+如果不知道 CDSTEP 當前的 ID 號，可以發送 info 命令到廣播地址 0xff 進行搜尋。
 
 當前 MCU Flash 總共 128K, 每頁大小爲 2K, 前 24K 存放 Bootloader，最後 2K 存放 csa 參數表，其餘爲 APP.
 
@@ -177,5 +177,5 @@ Bootloader 上電後，先使用默認波特率 115200，如果收到主機設�
 但我們這個 stepper motor 控制，週期不固定，所以要把時間信息和其它被觀察的變量，每次都一起記錄。
 
 使用 plot 調試時，建議把設備的波特率設置高一些。  
-如果數據量很大，MDRV 會把連續的信息保存在 buffer 中，buffer 滿之後，會等待 buffer 完全清空再繼續，能最大程度保證數據的連續性，避免細節丟失。
+如果數據量很大，CDSTEP 會把連續的信息保存在 buffer 中，buffer 滿之後，會等待 buffer 完全清空再繼續，能最大程度保證數據的連續性，避免細節丟失。
 
