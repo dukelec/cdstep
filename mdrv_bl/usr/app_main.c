@@ -12,12 +12,13 @@
 extern SPI_HandleTypeDef hspi1;
 extern UART_HandleTypeDef huart1;
 
+int CDCTL_SYS_CLK = 150000000; // 150MHz for cdctl01a
+
 gpio_t led_r = { .group = LED_R_GPIO_Port, .num = LED_R_Pin };
 gpio_t led_g = { .group = LED_G_GPIO_Port, .num = LED_G_Pin };
 
 uart_t debug_uart = { .huart = &huart1 };
 
-static gpio_t r_rst = { .group = CD_RST_GPIO_Port, .num = CD_RST_Pin };
 static gpio_t r_cs = { .group = CD_CS_GPIO_Port, .num = CD_CS_Pin };
 static spi_t r_spi = { .hspi = &hspi1, .ns_pin = &r_cs };
 
@@ -43,7 +44,28 @@ static void device_init(void)
 
     cdctl_cfg_t cfg = csa.bus_cfg;
     cfg.baud_l = cfg.baud_h = 115200;
-    cdctl_dev_init(&r_dev, &frame_free_head, &cfg, &r_spi, &r_rst);
+    cdctl_dev_init(&r_dev, &frame_free_head, &cfg, &r_spi, NULL);
+
+    if (r_dev.version >= 0x10) {
+        // 16MHz / (2 + 2) * (73 + 2) / 2^1 = 150MHz
+        cdctl_write_reg(&r_dev, REG_PLL_N, 0x2);
+        d_info("pll_n: %02x\n", cdctl_read_reg(&r_dev, REG_PLL_N));
+        cdctl_write_reg(&r_dev, REG_PLL_ML, 0x49); // 0x49: 73
+        d_info("pll_ml: %02x\n", cdctl_read_reg(&r_dev, REG_PLL_ML));
+
+        d_info("pll_ctrl: %02x\n", cdctl_read_reg(&r_dev, REG_PLL_CTRL));
+        cdctl_write_reg(&r_dev, REG_PLL_CTRL, 0x10); // enable pll
+        d_info("clk_status: %02x\n", cdctl_read_reg(&r_dev, REG_CLK_STATUS));
+        cdctl_write_reg(&r_dev, REG_CLK_CTRL, 0x01); // select pll
+
+        d_info("clk_status after select pll: %02x\n", cdctl_read_reg(&r_dev, REG_CLK_STATUS));
+        d_info("version after select pll: %02x\n", cdctl_read_reg(&r_dev, REG_VERSION));
+    } else {
+        d_info("fallback to cdctl-b1 module, ver: %02x\n", r_dev.version);
+        CDCTL_SYS_CLK = 40000000; // 40MHz
+        cdctl_set_baud_rate(&r_dev, cfg.baud_l, cfg.baud_h);
+    }
+
     cdn_add_intf(&dft_ns, &r_dev.cd_dev, csa.bus_net, csa.bus_cfg.mac);
 }
 

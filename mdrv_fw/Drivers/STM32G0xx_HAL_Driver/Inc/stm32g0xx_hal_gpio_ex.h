@@ -6,13 +6,12 @@
   ******************************************************************************
   * @attention
   *
-  * <h2><center>&copy; Copyright (c) 2018 STMicroelectronics. 
-  * All rights reserved.</center></h2>
+  * Copyright (c) 2018 STMicroelectronics.
+  * All rights reserved.
   *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the 
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
+  * This software is licensed under terms that can be found in the LICENSE file
+  * in the root directory of this software component.
+  * If no LICENSE file comes with this software, it is provided AS-IS.
   *
   ******************************************************************************
   */
@@ -186,7 +185,7 @@ extern "C" {
 
 #define IS_GPIO_AF(AF)         ((AF) <= (uint8_t)0x0A)
 
-#endif
+#endif /* STM32G0C1xx || STM32G0B1xx */
 
 #if defined (STM32G0B0xx)
 /*------------------------- STM32G0B0xx ------------------------*/
@@ -297,7 +296,7 @@ extern "C" {
 
 #define IS_GPIO_AF(AF)         ((AF) <= (uint8_t)0x09)
 
-#endif
+#endif /* STM32G0B0xx */
 
 
 #if defined (STM32G081xx) || defined (STM32G071xx)
@@ -810,7 +809,7 @@ extern "C" {
                                       ((__GPIOx__) == (GPIOB))? 1uL :\
                                       ((__GPIOx__) == (GPIOC))? 2uL :\
                                       ((__GPIOx__) == (GPIOD))? 3uL : 5uL)
-#endif
+#endif /* GPIOE */
 
 /**
   * @}
@@ -835,4 +834,3 @@ extern "C" {
 
 #endif /* STM32G0xx_HAL_GPIO_EX_H */
 
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
