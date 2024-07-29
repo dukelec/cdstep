@@ -29,12 +29,6 @@
 #define LOOP_FREQ   (64000000 / 64 / 200) // 5 KHz
 
 
-typedef enum {
-    LED_POWERON = 0,
-    LED_WARN,
-    LED_ERROR
-} led_state_t;
-
 typedef struct {
     uint16_t        offset;
     uint16_t        size;

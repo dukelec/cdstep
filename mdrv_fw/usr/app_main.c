@@ -145,6 +145,8 @@ static cdn_sock_t sock_force_rpt = { .port = 0xb, .ns = &dft_ns, .tx_only = true
 
 void app_main(void)
 {
+    gpio_set_value(&led_r, 1);
+    gpio_set_value(&led_g, 1);
     printf("\nstart app_main (mdrv-step)...\n");
     stack_check_init();
     load_conf();
@@ -159,7 +161,8 @@ void app_main(void)
     app_motor_init();
     cdn_sock_bind(&sock_force_rpt);
 
-    gpio_set_value(&led_g, 1);
+    delay_systick(100);
+    gpio_set_value(&led_r, 0);
     //uint32_t t_last = get_systick();
     while (true) {
         //if (get_systick() - t_last > (gpio_get_value(&led_g) ? 400 : 600)) {

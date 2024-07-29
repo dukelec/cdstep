@@ -10,6 +10,10 @@ Download this project:
 git clone --recurse-submodules https://github.com/dukelec/cdstep.git
 ```
 
+## Block Diagram
+
+<img src="doc/block_diagram.svg">
+
 ## GUI Tool
 
 CDBUS GUI Tool: https://github.com/dukelec/cdbus_gui

@@ -154,7 +154,8 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  HAL_RCC_MCOConfig(RCC_MCO1, RCC_MCO1SOURCE_PLLCLK, RCC_MCODIV_4);
+  __HAL_RCC_PLLCLKOUT_ENABLE(RCC_PLLRCLK);
+  HAL_RCC_MCOConfig(RCC_MCO_PF2, RCC_MCO1SOURCE_PLLCLK, RCC_MCODIV_4);
 }
 
 /**
