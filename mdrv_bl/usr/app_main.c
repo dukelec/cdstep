@@ -19,6 +19,7 @@ gpio_t led_g = { .group = LED_G_GPIO_Port, .num = LED_G_Pin };
 
 uart_t debug_uart = { .huart = &huart1 };
 
+static gpio_t r_rst = { .group = OLD_CD_RST_GPIO_Port, .num = OLD_CD_RST_Pin };
 static gpio_t r_cs = { .group = CD_CS_GPIO_Port, .num = CD_CS_Pin };
 static spi_t r_spi = { .hspi = &hspi1, .ns_pin = &r_cs };
 
@@ -44,7 +45,7 @@ static void device_init(void)
 
     cdctl_cfg_t cfg = csa.bus_cfg;
     cfg.baud_l = cfg.baud_h = 115200;
-    cdctl_dev_init(&r_dev, &frame_free_head, &cfg, &r_spi, NULL);
+    cdctl_dev_init(&r_dev, &frame_free_head, &cfg, &r_spi, &r_rst);
 
     if (r_dev.version >= 0x10) {
         // 16MHz / (2 + 2) * (73 + 2) / 2^1 = 150MHz
