@@ -75,33 +75,6 @@ static void device_init(void)
 }
 
 
-extern uint32_t end; // end of bss
-#define STACK_CHECK_SKIP 0x200
-#define STACK_CHECK_SIZE (64 + STACK_CHECK_SKIP)
-
-static void stack_check_init(void)
-{
-    int i;
-    printf("stack_check_init: skip: %p ~ %p, to %p\n",
-            &end, &end + STACK_CHECK_SKIP, &end + STACK_CHECK_SIZE);
-    for (i = STACK_CHECK_SKIP; i < STACK_CHECK_SIZE; i+=4)
-        *(uint32_t *)(&end + i) = 0xababcdcd;
-}
-
-static void stack_check(void)
-{
-    int i;
-    for (i = STACK_CHECK_SKIP; i < STACK_CHECK_SIZE; i+=4) {
-        if (*(uint32_t *)(&end + i) != 0xababcdcd) {
-            printf("stack overflow %p (skip: %p ~ %p): %08lx\n",
-                    &end + i, &end, &end + STACK_CHECK_SKIP, *(uint32_t *)(&end + i));
-            d_error("stack overflow %p (skip: %p ~ %p): %08lx\n",
-                    &end + i, &end, &end + STACK_CHECK_SKIP, *(uint32_t *)(&end + i));
-            while (true);
-        }
-    }
-}
-
 #if 0
 static void dump_hw_status(void)
 {
@@ -122,10 +95,11 @@ static void dump_hw_status(void)
 
 void app_main(void)
 {
+    uint64_t *stack_check = (uint64_t *)((uint32_t)&end + 256);
     gpio_set_value(&led_r, 1);
     gpio_set_value(&led_g, 1);
     printf("\nstart app_main (mdrv-step)...\n");
-    stack_check_init();
+    *stack_check = 0xababcdcd12123434;
     load_conf();
     debug_init(&dft_ns, &csa.dbg_dst, &csa.dbg_en);
     device_init();
@@ -145,13 +119,17 @@ void app_main(void)
         //    t_last = get_systick();
         //    gpio_set_value(&led_g, !gpio_get_value(&led_g));
         //}
-        stack_check();
         //dump_hw_status();
         app_motor_routine();
         cdn_routine(&dft_ns); // handle cdnet
         common_service_routine();
         raw_dbg_routine();
         debug_flush(false);
+
+        if (*stack_check != 0xababcdcd12123434) {
+            printf("stack overflow\n");
+            while (true);
+        }
     }
 }
 

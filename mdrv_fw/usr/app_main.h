@@ -10,7 +10,7 @@
 #ifndef __APP_MAIN_H__
 #define __APP_MAIN_H__
 
-#include "cdnet_dispatch.h"
+#include "cdnet_core.h"
 #include "cd_debug.h"
 #include "cdbus_uart.h"
 #include "cdctl_it.h"
@@ -115,6 +115,8 @@ extern csa_hook_t csa_w_hook[];
 extern int csa_w_hook_num;
 extern csa_hook_t csa_r_hook[];
 extern int csa_r_hook_num;
+
+extern uint32_t end; // end of bss
 
 int flash_erase(uint32_t addr, uint32_t len);
 int flash_write(uint32_t addr, uint32_t len, const uint8_t *buf);
