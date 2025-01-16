@@ -36,7 +36,7 @@ cdn_ns_t dft_ns = {0};             // CDNET
 static void device_init(void)
 {
     int i;
-    cdn_init_ns(&dft_ns, &packet_free_head);
+    cdn_init_ns(&dft_ns, &packet_free_head, &frame_free_head);
 
     for (i = 0; i < FRAME_MAX; i++)
         list_put(&frame_free_head, &frame_alloc[i].node);
@@ -49,18 +49,18 @@ static void device_init(void)
 
     if (r_dev.version >= 0x10) {
         // 16MHz / (2 + 2) * (73 + 2) / 2^1 = 150MHz
-        cdctl_write_reg(&r_dev, REG_PLL_N, 0x2);
-        d_info("pll_n: %02x\n", cdctl_read_reg(&r_dev, REG_PLL_N));
-        cdctl_write_reg(&r_dev, REG_PLL_ML, 0x49); // 0x49: 73
-        d_info("pll_ml: %02x\n", cdctl_read_reg(&r_dev, REG_PLL_ML));
+        cdctl_reg_w(&r_dev, REG_PLL_N, 0x2);
+        d_info("pll_n: %02x\n", cdctl_reg_r(&r_dev, REG_PLL_N));
+        cdctl_reg_w(&r_dev, REG_PLL_ML, 0x49); // 0x49: 73
+        d_info("pll_ml: %02x\n", cdctl_reg_r(&r_dev, REG_PLL_ML));
 
-        d_info("pll_ctrl: %02x\n", cdctl_read_reg(&r_dev, REG_PLL_CTRL));
-        cdctl_write_reg(&r_dev, REG_PLL_CTRL, 0x10); // enable pll
-        d_info("clk_status: %02x\n", cdctl_read_reg(&r_dev, REG_CLK_STATUS));
-        cdctl_write_reg(&r_dev, REG_CLK_CTRL, 0x01); // select pll
+        d_info("pll_ctrl: %02x\n", cdctl_reg_r(&r_dev, REG_PLL_CTRL));
+        cdctl_reg_w(&r_dev, REG_PLL_CTRL, 0x10); // enable pll
+        d_info("clk_status: %02x\n", cdctl_reg_r(&r_dev, REG_CLK_STATUS));
+        cdctl_reg_w(&r_dev, REG_CLK_CTRL, 0x01); // select pll
 
-        d_info("clk_status after select pll: %02x\n", cdctl_read_reg(&r_dev, REG_CLK_STATUS));
-        d_info("version after select pll: %02x\n", cdctl_read_reg(&r_dev, REG_VERSION));
+        d_info("clk_status after select pll: %02x\n", cdctl_reg_r(&r_dev, REG_CLK_STATUS));
+        d_info("version after select pll: %02x\n", cdctl_reg_r(&r_dev, REG_VERSION));
     } else {
         d_info("fallback to cdctl-b1 module, ver: %02x\n", r_dev.version);
         CDCTL_SYS_CLK = 40000000; // 40MHz
@@ -78,8 +78,8 @@ static void jump_to_app(void)
     uint32_t stack = *(uint32_t*)APP_ADDR;
     uint32_t func = *(uint32_t*)(APP_ADDR + 4);
 
-    gpio_set_value(&led_r, 0);
-    gpio_set_value(&led_g, 0);
+    gpio_set_val(&led_r, 0);
+    gpio_set_val(&led_g, 0);
     printf("jump to app...\n");
     while (!__HAL_UART_GET_FLAG(debug_uart.huart, UART_FLAG_TC));
     HAL_UART_DeInit(debug_uart.huart);
@@ -107,7 +107,7 @@ void app_main(void)
     device_init();
     common_service_init();
     printf("bl conf: %s\n", csa.conf_from ? "load from flash" : "use default");
-    gpio_set_value(&led_g, 1);
+    gpio_set_val(&led_g, 1);
 
     uint32_t t_last = get_systick();
     uint32_t boot_time = get_systick();
@@ -116,7 +116,7 @@ void app_main(void)
     while (true) {
         if (get_systick() - t_last > (update_baud ? 100000 : 200000) / SYSTICK_US_DIV) {
             t_last = get_systick();
-            gpio_set_value(&led_g, !gpio_get_value(&led_g));
+            gpio_set_val(&led_g, !gpio_get_val(&led_g));
         }
 
         if (!csa.keep_in_bl && !update_baud && get_systick() - boot_time > 1000000 / SYSTICK_US_DIV) {

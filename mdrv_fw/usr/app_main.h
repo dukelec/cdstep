@@ -23,8 +23,8 @@
 #define APP_CONF_ADDR       0x0801f800 // page 63, the last page
 #define APP_CONF_VER        0x0106
 
-#define FRAME_MAX           10
-#define PACKET_MAX          60
+#define FRAME_MAX           80
+#define PACKET_MAX          80
 
 #define LOOP_FREQ   (64000000 / 64 / 200) // 5 KHz
 
@@ -138,6 +138,7 @@ void raw_dbg(int idx);
 void raw_dbg_init(void);
 void raw_dbg_routine(void);
 void limit_det_isr(void);
+void timer_isr(void);
 
 extern gpio_t led_r;
 extern gpio_t led_g;
