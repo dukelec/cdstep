@@ -47,7 +47,7 @@ static void device_init(void)
         list_put(&packet_free_head, &packet_alloc[i].node);
 
     spi_wr_init(&r_spi);
-    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi, NULL, &r_int);
+    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi, NULL, &r_int, EXTI2_3_IRQn);
 
     if (r_dev.version >= 0x10) {
         // 16MHz / (2 + 2) * (73 + 2) / 2^1 = 150MHz
@@ -162,8 +162,6 @@ void EXTI4_15_IRQHandler(void)
 void DMA1_Channel1_IRQHandler(void)
 {
     r_spi.dma_rx->IFCR = r_spi.dma_mask;
-    r_spi.dma_ch_rx->CCR &= ~DMA_CCR_EN;
-    r_spi.dma_ch_tx->CCR &= ~DMA_CCR_EN;
     cdctl_spi_isr(&r_dev);
 }
 

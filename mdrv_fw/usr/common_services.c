@@ -193,7 +193,10 @@ static void p5_service_routine(void)
 
         ret_val = csa_hook_exec(false, offset, len, NULL);
         if (!ret_val) {
+            // not use local_irq_save, avoid delay encoder spi read
+            NVIC_DisableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
             memcpy(pkt->dat + 1, ((void *) &csa) + offset, len);
+            NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
             ret_val = csa_hook_exec(true, offset, len, NULL);
         }
 
@@ -205,9 +208,7 @@ static void p5_service_routine(void)
         uint16_t offset = get_unaligned16(rx_dat + 1);
         uint8_t len = pkt->len - 3;
         uint8_t *src_dat = rx_dat + 3;
-        uint32_t flags;
 
-        local_irq_save(flags);
         ret_val = csa_hook_exec(false, offset, len, src_dat);
         if (!ret_val) {
             for (int i = 0; i < csa_w_allow_num; i++) {
@@ -225,11 +226,12 @@ static void p5_service_routine(void)
                 //printf("csa @ %p, %p <- %p, len %d, dat[0]: %x\n",
                 //        &csa, ((void *) &csa) + start, src_dat + (start - offset), end - start,
                 //        *(src_dat + (start - offset)));
+                NVIC_DisableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                 memcpy(((void *) &csa) + start, src_dat + (start - offset), end - start);
+                NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
             }
             ret_val = csa_hook_exec(true, offset, len, src_dat);
         }
-        local_irq_restore(flags);
 
         d_debug("csa write: %04x %d, ret: %02x\n", offset, len, ret_val);
         pkt->len = 1;
@@ -275,9 +277,6 @@ static void p6_service_routine(void)
     if (rx_dat[0] == 0x20 && pkt->len >= 1) {
         uint8_t *src_dat = rx_dat + 1;
         uint8_t *dst_dat = pkt->dat + 1;
-        uint32_t flags;
-
-        local_irq_save(flags);
 
         for (int i = 0; !ret_val && i < 5; i++) {
             regr_t *regr = csa.qxchg_set + i;
@@ -289,7 +288,9 @@ static void p6_service_routine(void)
 
             ret_val = csa_hook_exec(false, regr->offset, lim_size, src_dat);
             if (!ret_val) {
+                NVIC_DisableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                 memcpy(((void *) &csa) + regr->offset, src_dat, lim_size);
+                NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                 ret_val = csa_hook_exec(true, regr->offset, lim_size, src_dat);
             }
 
@@ -302,13 +303,13 @@ static void p6_service_routine(void)
                 break;
             ret_val = csa_hook_exec(false, regr->offset, regr->size, NULL);
             if (!ret_val) {
+                NVIC_DisableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                 memcpy(dst_dat, ((void *) &csa) + regr->offset, regr->size);
+                NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                 ret_val = csa_hook_exec(true, regr->offset, regr->size, NULL);
             }
             dst_dat += regr->size;
         }
-
-        local_irq_restore(flags);
 
         pkt->len = dst_dat - pkt->dat;
         pkt->dat[0] = 0x80 | ret_val;
@@ -316,9 +317,6 @@ static void p6_service_routine(void)
 
     } else if (rx_dat[0] == 0x00 && pkt->len == 1) {
             uint8_t *dst_dat = pkt->dat + 1;
-            uint32_t flags;
-
-            local_irq_save(flags);
 
             for (int i = 0; !ret_val && i < 5; i++) {
                 regr_t *regr = csa.qxchg_ro + i;
@@ -326,13 +324,13 @@ static void p6_service_routine(void)
                     break;
                 ret_val = csa_hook_exec(false, regr->offset, regr->size, NULL);
                 if (!ret_val) {
+                    NVIC_DisableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                     memcpy(dst_dat, ((void *) &csa) + regr->offset, regr->size);
+                    NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                     ret_val = csa_hook_exec(true, regr->offset, regr->size, NULL);
                 }
                 dst_dat += regr->size;
             }
-
-            local_irq_restore(flags);
 
             pkt->len = dst_dat - pkt->dat;
             pkt->dat[0] = 0x80 | ret_val;
