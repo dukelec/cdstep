@@ -12,6 +12,7 @@
 extern SPI_HandleTypeDef hspi1;
 extern UART_HandleTypeDef huart1;
 
+uint32_t *bl_args = (uint32_t *)BL_ARGS;
 int CDCTL_SYS_CLK = 150000000; // 150MHz for cdctl01a
 
 gpio_t led_r = { .group = LED_R_GPIO_Port, .num = LED_R_Pin };
@@ -36,31 +37,32 @@ cdn_ns_t dft_ns = {0};             // CDNET
 static void device_init(void)
 {
     int i;
-    cdn_init_ns(&dft_ns, &packet_free_head);
+    cdn_init_ns(&dft_ns, &packet_free_head, &frame_free_head);
 
     for (i = 0; i < FRAME_MAX; i++)
-        list_put(&frame_free_head, &frame_alloc[i].node);
+        cd_list_put(&frame_free_head, &frame_alloc[i]);
     for (i = 0; i < PACKET_MAX; i++)
-        list_put(&packet_free_head, &packet_alloc[i].node);
+        cdn_list_put(&packet_free_head, &packet_alloc[i]);
 
     cdctl_cfg_t cfg = csa.bus_cfg;
-    cfg.baud_l = cfg.baud_h = 115200;
+    if (!csa.keep_in_bl)
+        cfg.baud_l = cfg.baud_h = 115200;
     cdctl_dev_init(&r_dev, &frame_free_head, &cfg, &r_spi, &r_rst);
 
     if (r_dev.version >= 0x10) {
         // 16MHz / (2 + 2) * (73 + 2) / 2^1 = 150MHz
-        cdctl_write_reg(&r_dev, REG_PLL_N, 0x2);
-        d_info("pll_n: %02x\n", cdctl_read_reg(&r_dev, REG_PLL_N));
-        cdctl_write_reg(&r_dev, REG_PLL_ML, 0x49); // 0x49: 73
-        d_info("pll_ml: %02x\n", cdctl_read_reg(&r_dev, REG_PLL_ML));
+        cdctl_reg_w(&r_dev, REG_PLL_N, 0x2);
+        d_info("pll_n: %02x\n", cdctl_reg_r(&r_dev, REG_PLL_N));
+        cdctl_reg_w(&r_dev, REG_PLL_ML, 0x49); // 0x49: 73
+        d_info("pll_ml: %02x\n", cdctl_reg_r(&r_dev, REG_PLL_ML));
 
-        d_info("pll_ctrl: %02x\n", cdctl_read_reg(&r_dev, REG_PLL_CTRL));
-        cdctl_write_reg(&r_dev, REG_PLL_CTRL, 0x10); // enable pll
-        d_info("clk_status: %02x\n", cdctl_read_reg(&r_dev, REG_CLK_STATUS));
-        cdctl_write_reg(&r_dev, REG_CLK_CTRL, 0x01); // select pll
+        d_info("pll_ctrl: %02x\n", cdctl_reg_r(&r_dev, REG_PLL_CTRL));
+        cdctl_reg_w(&r_dev, REG_PLL_CTRL, 0x10); // enable pll
+        d_info("clk_status: %02x\n", cdctl_reg_r(&r_dev, REG_CLK_STATUS));
+        cdctl_reg_w(&r_dev, REG_CLK_CTRL, 0x01); // select pll
 
-        d_info("clk_status after select pll: %02x\n", cdctl_read_reg(&r_dev, REG_CLK_STATUS));
-        d_info("version after select pll: %02x\n", cdctl_read_reg(&r_dev, REG_VERSION));
+        d_info("clk_status after select pll: %02x\n", cdctl_reg_r(&r_dev, REG_CLK_STATUS));
+        d_info("version after select pll: %02x\n", cdctl_reg_r(&r_dev, REG_VERSION));
     } else {
         d_info("fallback to cdctl-b1 module, ver: %02x\n", r_dev.version);
         CDCTL_SYS_CLK = 40000000; // 40MHz
@@ -78,8 +80,8 @@ static void jump_to_app(void)
     uint32_t stack = *(uint32_t*)APP_ADDR;
     uint32_t func = *(uint32_t*)(APP_ADDR + 4);
 
-    gpio_set_value(&led_r, 0);
-    gpio_set_value(&led_g, 0);
+    gpio_set_val(&led_r, 0);
+    gpio_set_val(&led_g, 0);
     printf("jump to app...\n");
     while (!__HAL_UART_GET_FLAG(debug_uart.huart, UART_FLAG_TC));
     HAL_UART_DeInit(debug_uart.huart);
@@ -104,22 +106,22 @@ void app_main(void)
     bool dbg_en_bk = csa.dbg_en;
     csa.dbg_en = false; // silence
     debug_init(&dft_ns, &csa.dbg_dst, &csa.dbg_en);
+    csa.keep_in_bl = *bl_args == 0xcdcd0001;
     device_init();
     common_service_init();
-    printf("bl conf: %s\n", csa.conf_from ? "load from flash" : "use default");
-    gpio_set_value(&led_g, 1);
+    printf("bl conf: %s\n, bl_args: %08lx", csa.conf_from ? "load from flash" : "use default", *bl_args);
+    gpio_set_val(&led_g, 1);
 
     uint32_t t_last = get_systick();
-    uint32_t boot_time = get_systick();
-    bool update_baud = false;
+    bool update_baud = csa.keep_in_bl;
 
     while (true) {
         if (get_systick() - t_last > (update_baud ? 100000 : 200000) / SYSTICK_US_DIV) {
             t_last = get_systick();
-            gpio_set_value(&led_g, !gpio_get_value(&led_g));
+            gpio_set_val(&led_g, !gpio_get_val(&led_g));
         }
 
-        if (!csa.keep_in_bl && !update_baud && get_systick() - boot_time > 1000000 / SYSTICK_US_DIV) {
+        if (!csa.keep_in_bl && !update_baud && get_systick() > 1000000 / SYSTICK_US_DIV) {
             update_baud = true;
             if (csa.bus_cfg.baud_l != 115200 || csa.bus_cfg.baud_h != 115200) {
                 cdctl_set_baud_rate(&r_dev, csa.bus_cfg.baud_l, csa.bus_cfg.baud_h);
@@ -130,7 +132,7 @@ void app_main(void)
             csa.dbg_en = dbg_en_bk;
         }
 
-        if (!csa.keep_in_bl && get_systick() - boot_time > 2000000 / SYSTICK_US_DIV)
+        if (!csa.keep_in_bl && get_systick() > 2000000 / SYSTICK_US_DIV)
             jump_to_app();
 
         cdctl_routine(&r_dev);

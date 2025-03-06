@@ -73,7 +73,6 @@ void Error_Handler(void);
 #define DRV_MO_GPIO_Port GPIOB
 #define SEN_INT_Pin GPIO_PIN_12
 #define SEN_INT_GPIO_Port GPIOB
-#define SEN_INT_EXTI_IRQn EXTI4_15_IRQn
 #define SEN_SCK_Pin GPIO_PIN_13
 #define SEN_SCK_GPIO_Port GPIOB
 #define SEN_SDO_Pin GPIO_PIN_14
@@ -86,7 +85,6 @@ void Error_Handler(void);
 #define LED_R_GPIO_Port GPIOD
 #define CD_INT_Pin GPIO_PIN_3
 #define CD_INT_GPIO_Port GPIOD
-#define CD_INT_EXTI_IRQn EXTI2_3_IRQn
 
 /* USER CODE BEGIN Private defines */
 

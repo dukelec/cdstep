@@ -164,8 +164,11 @@ int flash_write(uint32_t addr, uint32_t len, const uint8_t *buf)
     uint64_t *src_dat = (uint64_t *)buf;
 
     ret = HAL_FLASH_Unlock();
-    for (int i = 0; ret == HAL_OK && i < cnt; i++)
-        ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, (uint32_t)(dst_dat + i), *(src_dat + i));
+    for (int i = 0; ret == HAL_OK && i < cnt; i++) {
+        uint64_t dat = get_unaligned32((uint8_t *)(src_dat + i));
+        dat |= (uint64_t)get_unaligned32((uint8_t *)(src_dat + i) + 4) << 32;
+        ret = HAL_FLASH_Program(FLASH_TYPEPROGRAM_DOUBLEWORD, (uint32_t)(dst_dat + i), dat);
+    }
     ret |= HAL_FLASH_Lock();
 
     d_verbose("nvm write: %08x %d(%d), ret: %d\n", dst_dat, len, cnt, ret);
@@ -203,7 +206,7 @@ void csa_list_show(void)
     CSA_SHOW(1, magic_code, "Magic code: 0xcdcd");
     CSA_SHOW(1, conf_ver, "Config version");
     CSA_SHOW(1, conf_from, "0: default config, 1: all from flash, 2: partly from flash");
-    CSA_SHOW(0, do_reboot, "Write 1 to reboot");
+    CSA_SHOW(0, do_reboot, "1: reboot to bl, 2: reboot to app");
     CSA_SHOW(0, save_conf, "Write 1 to save current config to flash");
     d_debug("\n"); debug_flush(true);
 
