@@ -46,26 +46,28 @@ static void p1_service_routine(void)
     cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock1);
     if (!pkt)
         return;
+    uint8_t *rx_dat = pkt->dat;
+    pkt->dst = pkt->src;
+    cdn_pkt_prepare(&sock1, pkt);
 
-    if (pkt->len == 1 && pkt->dat[0] == 0) {
+    if (pkt->len == 1 && rx_dat[0] == 0) {
         pkt->dat[0] = 0x80;
         strcpy((char *)pkt->dat + 1, info_str);
         pkt->len = strlen(info_str) + 1;
-        pkt->dst = pkt->src;
         cdn_sock_sendto(&sock1, pkt);
         csa.conf_from &= 0x7f;
         return;
     }
 
     // mac address conflicts can be resolved by following:
-    if (pkt->len >= 5 && pkt->dat[0] == 0x10) {
-        uint16_t max_time = *(uint16_t *)(pkt->dat + 1);
+    if (pkt->len >= 5 && rx_dat[0] == 0x10) {
+        uint16_t max_time = get_unaligned16(rx_dat + 1);
         uint16_t wait_time = rand() / (RAND_MAX / max_time);
-        uint8_t mac_start = pkt->dat[3];
-        uint8_t mac_end = pkt->dat[4];
+        uint8_t mac_start = rx_dat[3];
+        uint8_t mac_end = rx_dat[4];
         uint8_t local_mac = csa.bus_cfg.mac;
-        pkt->dat[pkt->len] = '\0';
-        char *string = (char *)pkt->dat + 5;
+        rx_dat[pkt->len] = '\0';
+        char *string = (char *)rx_dat + 5;
         d_debug("p1 search: wait %d (%d), [%02x, %02x] (%02x), str: %s\n",
                 wait_time, max_time, mac_start, mac_end, local_mac, string);
 
@@ -75,7 +77,6 @@ static void p1_service_routine(void)
             pkt->dat[0] = 0x80;
             strcpy((char *)pkt->dat + 1, info_str);
             pkt->len = strlen(info_str) + 1;
-            pkt->dst = pkt->src;
             cdn_sock_sendto(&sock1, pkt);
             csa.conf_from &= 0x7f;
             return;
@@ -85,7 +86,7 @@ static void p1_service_routine(void)
     }
 
     d_debug("p1 ser: ignore\n");
-    list_put(dft_ns.free_pkts, &pkt->node);
+    cdn_pkt_free(&dft_ns, pkt);
 }
 
 
@@ -100,46 +101,48 @@ static void p8_service_routine(void)
     cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock8);
     if (!pkt)
         return;
+    uint8_t *rx_dat = pkt->dat;
+    pkt->dst = pkt->src;
+    cdn_pkt_prepare(&sock8, pkt);
 
-    if (pkt->dat[0] == 0x2f && pkt->len == 9) {
-        uint32_t addr = *(uint32_t *)(pkt->dat + 1);
-        uint32_t len = *(uint32_t *)(pkt->dat + 5);
+    if (rx_dat[0] == 0x2f && pkt->len == 9) {
+        uint32_t addr = get_unaligned32(rx_dat + 1);
+        uint32_t len = get_unaligned32(rx_dat + 5);
         int ret = flash_erase(addr, len);
         pkt->len = 1;
         pkt->dat[0] = ret == HAL_OK ? 0x80 : 0x81;
 
-    } else if (pkt->dat[0] == 0x00 && pkt->len == 6) {
-        uint32_t *src_dat = (uint32_t *) *(uint32_t *)(pkt->dat + 1);
-        uint8_t len = min(pkt->dat[5], CDN_MAX_DAT - 1);
+    } else if (rx_dat[0] == 0x00 && pkt->len == 6) {
+        uint8_t *src_dat = (uint8_t *) get_unaligned32(rx_dat + 1);
+        uint8_t len = min(rx_dat[5], CDN_MAX_DAT - 1);
         memcpy(pkt->dat + 1, src_dat, len);
         d_debug("nvm read: %08x %d\n", src_dat, len);
         pkt->dat[0] = 0x80;
         pkt->len = len + 1;
 
-    } else if (pkt->dat[0] == 0x20 && pkt->len > 5) {
-        uint32_t addr = *(uint32_t *)(pkt->dat + 1);
+    } else if (rx_dat[0] == 0x20 && pkt->len > 5) {
+        uint32_t addr = get_unaligned32(rx_dat + 1);
         uint8_t len = pkt->len - 5;
-        int ret = flash_write(addr, len, pkt->dat + 5);
+        int ret = flash_write(addr, len, rx_dat + 5);
         pkt->len = 1;
         pkt->dat[0] = ret == HAL_OK ? 0x80 : 0x81;
-/*
-    } else if (pkt->len == 9 && pkt->dat[0] == 0x10) {
-        uint32_t f_addr = *(uint32_t *)(pkt->dat + 1);
-        uint32_t f_len = *(uint32_t *)(pkt->dat + 5);
+#if 0
+    } else if (pkt->len == 9 && rx_dat[0] == 0x10) {
+        uint32_t f_addr = get_unaligned32(rx_dat + 1);
+        uint32_t f_len = get_unaligned32(rx_dat + 5);
         uint16_t crc = crc16((const uint8_t *)f_addr, f_len);
 
         d_debug("nvm crc addr: %x, len: %x, crc: %02x", f_addr, f_len, crc);
         *(uint16_t *)(pkt->dat + 1) = crc;
         pkt->dat[0] = 0x80;
         pkt->len = 3;
-*/
+#endif
     } else {
         d_warn("nvm: wrong cmd, len: %d\n", pkt->len);
-        list_put(dft_ns.free_pkts, &pkt->node);
+        cdn_pkt_free(&dft_ns, pkt);
         return;
     }
 
-    pkt->dst = pkt->src;
     cdn_sock_sendto(&sock8, pkt);
     return;
 }
@@ -177,17 +180,23 @@ static void p5_service_routine(void)
         return;
     if (csa.conf_from & 0x80) {
         d_warn("csa: avoid cmd, len: %d\n", pkt->len);
-        list_put(dft_ns.free_pkts, &pkt->node);
+        cdn_pkt_free(&dft_ns, pkt);
         return;
     }
+    uint8_t *rx_dat = pkt->dat;
+    pkt->dst = pkt->src;
+    cdn_pkt_prepare(&sock5, pkt);
 
-    if (pkt->dat[0] == 0x00 && pkt->len == 4) {
-        uint16_t offset = *(uint16_t *)(pkt->dat + 1);
-        uint8_t len = min(pkt->dat[3], CDN_MAX_DAT - 1);
+    if (rx_dat[0] == 0x00 && pkt->len == 4) {
+        uint16_t offset = get_unaligned16(rx_dat + 1);
+        uint8_t len = min(rx_dat[3], CDN_MAX_DAT - 1);
 
         ret_val = csa_hook_exec(false, offset, len, NULL);
         if (!ret_val) {
+            // not use local_irq_save, avoid delay encoder spi read
+            NVIC_DisableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
             memcpy(pkt->dat + 1, ((void *) &csa) + offset, len);
+            NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
             ret_val = csa_hook_exec(true, offset, len, NULL);
         }
 
@@ -195,13 +204,11 @@ static void p5_service_routine(void)
         pkt->dat[0] = 0x80 | ret_val;
         pkt->len = len + 1;
 
-    } else if (pkt->dat[0] == 0x20 && pkt->len > 3) {
-        uint16_t offset = *(uint16_t *)(pkt->dat + 1);
+    } else if (rx_dat[0] == 0x20 && pkt->len > 3) {
+        uint16_t offset = get_unaligned16(rx_dat + 1);
         uint8_t len = pkt->len - 3;
-        uint8_t *src_dat = pkt->dat + 3;
-        uint32_t flags;
+        uint8_t *src_dat = rx_dat + 3;
 
-        local_irq_save(flags);
         ret_val = csa_hook_exec(false, offset, len, src_dat);
         if (!ret_val) {
             for (int i = 0; i < csa_w_allow_num; i++) {
@@ -219,19 +226,20 @@ static void p5_service_routine(void)
                 //printf("csa @ %p, %p <- %p, len %d, dat[0]: %x\n",
                 //        &csa, ((void *) &csa) + start, src_dat + (start - offset), end - start,
                 //        *(src_dat + (start - offset)));
+                NVIC_DisableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                 memcpy(((void *) &csa) + start, src_dat + (start - offset), end - start);
+                NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
             }
             ret_val = csa_hook_exec(true, offset, len, src_dat);
         }
-        local_irq_restore(flags);
 
         d_debug("csa write: %04x %d, ret: %02x\n", offset, len, ret_val);
         pkt->len = 1;
         pkt->dat[0] = 0x80 | ret_val;
 
-    } else if (pkt->dat[0] == 0x01 && pkt->len == 4) {
-            uint16_t offset = *(uint16_t *)(pkt->dat + 1);
-            uint8_t len = min(pkt->dat[3], CDN_MAX_DAT - 1);
+    } else if (rx_dat[0] == 0x01 && pkt->len == 4) {
+            uint16_t offset = get_unaligned16(rx_dat + 1);
+            uint8_t len = min(rx_dat[3], CDN_MAX_DAT - 1);
             memcpy(pkt->dat + 1, ((void *) &csa_dft) + offset, len);
             d_debug("csa read_dft: %04x %d\n", offset, len);
             pkt->dat[0] = 0x80;
@@ -239,11 +247,10 @@ static void p5_service_routine(void)
 
     } else {
         d_warn("csa: wrong cmd, len: %d\n", pkt->len);
-        list_put(dft_ns.free_pkts, &pkt->node);
+        cdn_pkt_free(&dft_ns, pkt);
         return;
     }
 
-    pkt->dst = pkt->src;
     cdn_sock_sendto(&sock5, pkt);
     return;
 }
@@ -255,21 +262,21 @@ static void p6_service_routine(void)
     cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock6);
     if (!pkt)
         return;
+    uint8_t *rx_dat = pkt->dat;
+    pkt->dst = pkt->src;
+    cdn_pkt_prepare(&sock5, pkt);
 
-    if (pkt->dat[0] == 0x2f) { // multicast
+    if (rx_dat[0] == 0x2f) { // multicast
         if (1 + csa.qxchg_mcast.offset + csa.qxchg_mcast.size <= pkt->len) {
-            memmove(&pkt->dat[1], &pkt->dat[1 + csa.qxchg_mcast.offset], csa.qxchg_mcast.size);
+            memmove(&rx_dat[1], &rx_dat[1 + csa.qxchg_mcast.offset], csa.qxchg_mcast.size);
             pkt->dat[0] = 0x20;
             pkt->len = 1 + csa.qxchg_mcast.size;
         }
     }
 
-    if (pkt->dat[0] == 0x20 && pkt->len >= 1) {
-        uint8_t *src_dat = pkt->dat + 1;
+    if (rx_dat[0] == 0x20 && pkt->len >= 1) {
+        uint8_t *src_dat = rx_dat + 1;
         uint8_t *dst_dat = pkt->dat + 1;
-        uint32_t flags;
-
-        local_irq_save(flags);
 
         for (int i = 0; !ret_val && i < 5; i++) {
             regr_t *regr = csa.qxchg_set + i;
@@ -281,7 +288,9 @@ static void p6_service_routine(void)
 
             ret_val = csa_hook_exec(false, regr->offset, lim_size, src_dat);
             if (!ret_val) {
+                NVIC_DisableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                 memcpy(((void *) &csa) + regr->offset, src_dat, lim_size);
+                NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                 ret_val = csa_hook_exec(true, regr->offset, lim_size, src_dat);
             }
 
@@ -294,23 +303,20 @@ static void p6_service_routine(void)
                 break;
             ret_val = csa_hook_exec(false, regr->offset, regr->size, NULL);
             if (!ret_val) {
+                NVIC_DisableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                 memcpy(dst_dat, ((void *) &csa) + regr->offset, regr->size);
+                NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                 ret_val = csa_hook_exec(true, regr->offset, regr->size, NULL);
             }
             dst_dat += regr->size;
         }
 
-        local_irq_restore(flags);
-
         pkt->len = dst_dat - pkt->dat;
         pkt->dat[0] = 0x80 | ret_val;
         d_debug("qxchg: i %d, o %d\n", src_dat - pkt->dat, pkt->len);
 
-    } else if (pkt->dat[0] == 0x00 && pkt->len == 1) {
+    } else if (rx_dat[0] == 0x00 && pkt->len == 1) {
             uint8_t *dst_dat = pkt->dat + 1;
-            uint32_t flags;
-
-            local_irq_save(flags);
 
             for (int i = 0; !ret_val && i < 5; i++) {
                 regr_t *regr = csa.qxchg_ro + i;
@@ -318,24 +324,23 @@ static void p6_service_routine(void)
                     break;
                 ret_val = csa_hook_exec(false, regr->offset, regr->size, NULL);
                 if (!ret_val) {
+                    NVIC_DisableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                     memcpy(dst_dat, ((void *) &csa) + regr->offset, regr->size);
+                    NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
                     ret_val = csa_hook_exec(true, regr->offset, regr->size, NULL);
                 }
                 dst_dat += regr->size;
             }
-
-            local_irq_restore(flags);
 
             pkt->len = dst_dat - pkt->dat;
             pkt->dat[0] = 0x80 | ret_val;
 
     } else {
         d_warn("qxchg: wrong cmd, len: %d\n", pkt->len);
-        list_put(dft_ns.free_pkts, &pkt->node);
+        cdn_pkt_free(&dft_ns, pkt);
         return;
     }
 
-    pkt->dst = pkt->src;
     cdn_sock_sendto(&sock6, pkt);
     return;
 }
@@ -358,8 +363,10 @@ void common_service_routine(void)
         csa.save_conf = false;
         save_conf();
     }
-    if (csa.do_reboot)
+    if (csa.do_reboot) {
+        *(uint32_t *)BL_ARGS = 0xcdcd0000 | csa.do_reboot;
         NVIC_SystemReset();
+    }
     p1_service_routine();
     p5_service_routine();
     p6_service_routine();

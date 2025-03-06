@@ -33,7 +33,7 @@ static bool wait_after_dir_chg = false;
 static void set_pwm(int value)
 {
     if (wait_before_dir_chg) {
-        gpio_set_value(&drv_dir, (value >= 0));
+        gpio_set_val(&drv_dir, (value >= 0));
         wait_before_dir_chg = false;
         wait_after_dir_chg = true;
         return;
@@ -43,13 +43,13 @@ static void set_pwm(int value)
         return;
     }
 
-    if (value == 0 || gpio_get_value(&drv_dir) != (value >= 0)) {
+    if (value == 0 || gpio_get_val(&drv_dir) != (value >= 0)) {
         if (!is_last_0) {
             __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 0); // pause pwm
             __HAL_TIM_SET_AUTORELOAD(&htim3, 65535);
             __HAL_TIM_SET_PRESCALER(&htim3, 4-1);
             // after pausing pwm the counter must be read again and then cleared
-            int counter_dir = gpio_get_value(&drv_dir) ? 1 : -1;
+            int counter_dir = gpio_get_val(&drv_dir) ? 1 : -1;
             csa.cur_pos = pos_at_cnt0 + __HAL_TIM_GET_COUNTER(&htim2) * counter_dir;
             __HAL_TIM_SET_COUNTER(&htim2, 0);
             pos_at_cnt0 = csa.cur_pos;
@@ -73,7 +73,7 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 {
     uint32_t flags;
     static uint8_t last_csa_state = 0;
-    gpio_set_value(&drv_en, csa.state);
+    gpio_set_val(&drv_en, csa.state);
 
     local_irq_save(flags);
     if (csa.state && !csa.tc_state && csa.tc_pos != csa.cal_pos) {
@@ -104,7 +104,7 @@ uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 
 uint8_t drv_mo_r_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 {
-    csa.drv_mo = gpio_get_value(&drv_mo);
+    csa.drv_mo = gpio_get_val(&drv_mo);
     d_debug("read drv_mo: %d\n", csa.drv_mo);
     return 0;
 }
@@ -115,10 +115,10 @@ void app_motor_init(void)
     HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
     HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, (csa.ref_volt / 1000.0f) * 0x0fff / 3.3f);
 
-    gpio_set_value(&drv_md1, csa.md_val & 1);
-    gpio_set_value(&drv_md2, csa.md_val & 2);
-    gpio_set_value(&drv_md3, csa.md_val & 4);
-    gpio_set_value(&drv_en, csa.state);
+    gpio_set_val(&drv_md1, csa.md_val & 1);
+    gpio_set_val(&drv_md2, csa.md_val & 2);
+    gpio_set_val(&drv_md3, csa.md_val & 4);
+    gpio_set_val(&drv_en, csa.state);
     pid_i_init(&csa.pid_pos, true);
 
     __HAL_TIM_ENABLE(&htim1);
@@ -213,7 +213,7 @@ static inline void t_curve_compute(void)
 }
 
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+void timer_isr(void)
 {
     if (!csa.state) {
         pid_i_reset(&csa.pid_pos, csa.cur_pos, 0);
@@ -222,7 +222,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         csa.cal_speed = 0;
 
     } else {
-        int counter_dir = gpio_get_value(&drv_dir) ? 1 : -1;
+        int counter_dir = gpio_get_val(&drv_dir) ? 1 : -1;
         csa.cur_pos = pos_at_cnt0 + __HAL_TIM_GET_COUNTER(&htim2) * counter_dir;
 
         t_curve_compute();

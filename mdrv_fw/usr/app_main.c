@@ -10,26 +10,24 @@
 #include "math.h"
 #include "app_main.h"
 
-extern UART_HandleTypeDef huart1;
-extern SPI_HandleTypeDef hspi1;
-extern SPI_HandleTypeDef hspi2;
-extern TIM_HandleTypeDef htim1;
-extern TIM_HandleTypeDef htim2;
-
 int CDCTL_SYS_CLK = 150000000; // 150MHz for cdctl01a
 
 gpio_t led_r = { .group = LED_R_GPIO_Port, .num = LED_R_Pin };
 gpio_t led_g = { .group = LED_G_GPIO_Port, .num = LED_G_Pin };
 
-uart_t debug_uart = { .huart = &huart1 };
-
 static gpio_t r_int = { .group = CD_INT_GPIO_Port, .num = CD_INT_Pin };
 static gpio_t r_cs = { .group = CD_CS_GPIO_Port, .num = CD_CS_Pin };
-static spi_t r_spi = { .hspi = &hspi1, .ns_pin = &r_cs };
-
-static gpio_t sen_int = { .group = SEN_INT_GPIO_Port, .num = SEN_INT_Pin }; // position limit
 static gpio_t sen_clk = { .group = SEN_SCK_GPIO_Port, .num = SEN_SCK_Pin };
 static gpio_t sen_sdo = { .group = SEN_SDO_GPIO_Port, .num = SEN_SDO_Pin };
+
+static spi_t r_spi = {
+        .spi = SPI1,
+        .ns_pin = &r_cs,
+        .dma_rx = DMA1,
+        .dma_ch_rx = DMA1_Channel1,
+        .dma_ch_tx = DMA1_Channel2,
+        .dma_mask = (2 << 0)
+};
 
 static cd_frame_t frame_alloc[FRAME_MAX];
 list_head_t frame_free_head = {0};
@@ -44,29 +42,30 @@ cdn_ns_t dft_ns = {0};             // CDNET
 static void device_init(void)
 {
     int i;
-    cdn_init_ns(&dft_ns, &packet_free_head);
+    cdn_init_ns(&dft_ns, &packet_free_head, &frame_free_head);
 
     for (i = 0; i < FRAME_MAX; i++)
-        list_put(&frame_free_head, &frame_alloc[i].node);
+        cd_list_put(&frame_free_head, &frame_alloc[i]);
     for (i = 0; i < PACKET_MAX; i++)
-        list_put(&packet_free_head, &packet_alloc[i].node);
+        cdn_list_put(&packet_free_head, &packet_alloc[i]);
 
-    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi, NULL, &r_int);
+    spi_wr_init(&r_spi);
+    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi, NULL, &r_int, EXTI2_3_IRQn);
 
     if (r_dev.version >= 0x10) {
         // 16MHz / (2 + 2) * (73 + 2) / 2^1 = 150MHz
-        cdctl_write_reg(&r_dev, REG_PLL_N, 0x2);
-        d_info("pll_n: %02x\n", cdctl_read_reg(&r_dev, REG_PLL_N));
-        cdctl_write_reg(&r_dev, REG_PLL_ML, 0x49); // 0x49: 73
-        d_info("pll_ml: %02x\n", cdctl_read_reg(&r_dev, REG_PLL_ML));
+        cdctl_reg_w(&r_dev, REG_PLL_N, 0x2);
+        d_info("pll_n: %02x\n", cdctl_reg_r(&r_dev, REG_PLL_N));
+        cdctl_reg_w(&r_dev, REG_PLL_ML, 0x49); // 0x49: 73
+        d_info("pll_ml: %02x\n", cdctl_reg_r(&r_dev, REG_PLL_ML));
 
-        d_info("pll_ctrl: %02x\n", cdctl_read_reg(&r_dev, REG_PLL_CTRL));
-        cdctl_write_reg(&r_dev, REG_PLL_CTRL, 0x10); // enable pll
-        d_info("clk_status: %02x\n", cdctl_read_reg(&r_dev, REG_CLK_STATUS));
-        cdctl_write_reg(&r_dev, REG_CLK_CTRL, 0x01); // select pll
+        d_info("pll_ctrl: %02x\n", cdctl_reg_r(&r_dev, REG_PLL_CTRL));
+        cdctl_reg_w(&r_dev, REG_PLL_CTRL, 0x10); // enable pll
+        d_info("clk_status: %02x\n", cdctl_reg_r(&r_dev, REG_CLK_STATUS));
+        cdctl_reg_w(&r_dev, REG_CLK_CTRL, 0x01); // select pll
 
-        d_info("clk_status after select pll: %02x\n", cdctl_read_reg(&r_dev, REG_CLK_STATUS));
-        d_info("version after select pll: %02x\n", cdctl_read_reg(&r_dev, REG_VERSION));
+        d_info("clk_status after select pll: %02x\n", cdctl_reg_r(&r_dev, REG_CLK_STATUS));
+        d_info("version after select pll: %02x\n", cdctl_reg_r(&r_dev, REG_VERSION));
     } else {
         d_info("fallback to cdctl-b1 module, ver: %02x\n", r_dev.version);
         CDCTL_SYS_CLK = 40000000; // 40MHz
@@ -81,12 +80,12 @@ static void device_init(void)
 static void dump_hw_status(void)
 {
     static int t_l = 0;
-    if (get_systick() - t_l > 8000) {
+    if (get_systick() - t_l > 5000) {
         t_l = get_systick();
 
         d_debug("ctl: state %d, t_len %d, r_len %d, irq %d\n",
                 r_dev.state, r_dev.tx_head.len, r_dev.rx_head.len,
-                !gpio_get_value(r_dev.int_n));
+                !gpio_get_val(r_dev.int_n));
         d_debug("  r_cnt %d (lost %d, err %d, no-free %d), t_cnt %d (cd %d, err %d)\n",
                 r_dev.rx_cnt, r_dev.rx_lost_cnt, r_dev.rx_error_cnt,
                 r_dev.rx_no_free_node_cnt,
@@ -98,16 +97,19 @@ static void dump_hw_status(void)
 static int read_force(void)
 {
     int ret_val = 0;
-    //while (gpio_get_value(&sen_sdi));
 
+    delay_us(1);
     for (int i = 0; i < 24; i++) {
-        gpio_set_value(&sen_clk, 1);
-        gpio_set_value(&sen_clk, 0);
-        ret_val = (ret_val << 1) | gpio_get_value(&sen_sdo);
+        for (int i = 0; i < 2; i++) // delay
+            gpio_set_val(&sen_clk, 1);
+        for (int i = 0; i < 1; i++) // delay
+            gpio_set_val(&sen_clk, 0);
+        ret_val = (ret_val << 1) | gpio_get_val(&sen_sdo);
     }
 
-    gpio_set_value(&sen_clk, 1);
-    gpio_set_value(&sen_clk, 0);
+    for (int i = 0; i < 3; i++) // delay
+        gpio_set_val(&sen_clk, 1);
+    gpio_set_val(&sen_clk, 0);
 
     if (ret_val & 0x800000)
         ret_val |= 0xff000000;
@@ -119,11 +121,20 @@ static cdn_sock_t sock_force_rpt = { .port = 0xb, .ns = &dft_ns, .tx_only = true
 void app_main(void)
 {
     uint64_t *stack_check = (uint64_t *)((uint32_t)&end + 256);
-    gpio_set_value(&led_r, 1);
-    gpio_set_value(&led_g, 1);
+    gpio_set_val(&led_r, 1);
+    gpio_set_val(&led_g, 1);
+
     printf("\nstart app_main (mdrv-step)...\n");
     *stack_check = 0xababcdcd12123434;
     load_conf();
+
+    HAL_NVIC_SetPriority(DMA1_Channel1_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(DMA1_Channel2_3_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(DMA1_Ch4_7_DMAMUX1_OVR_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(EXTI2_3_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(EXTI4_15_IRQn, 2, 0);
+    HAL_NVIC_SetPriority(TIM1_BRK_UP_TRG_COM_IRQn, 1, 0);
+
     debug_init(&dft_ns, &csa.dbg_dst, &csa.dbg_en);
     device_init();
     common_service_init();
@@ -132,19 +143,25 @@ void app_main(void)
     d_info("conf (mdrv-step): %s\n", csa.conf_from ? "load from flash" : "use default");
     d_info("\x1b[92mColor Test\x1b[0m and \x1b[93mAnother Color\x1b[0m...\n");
     csa_list_show();
+
     app_motor_init();
     cdn_sock_bind(&sock_force_rpt);
 
+    HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
+    HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
+    HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
+    HAL_NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
+
     delay_systick(100);
-    gpio_set_value(&led_r, 0);
+    gpio_set_val(&led_r, 0);
     //uint32_t t_last = get_systick();
     while (true) {
-        //if (get_systick() - t_last > (gpio_get_value(&led_g) ? 400 : 600)) {
+        //if (get_systick() - t_last > (gpio_get_val(&led_g) ? 400 : 600)) {
         //    t_last = get_systick();
-        //    gpio_set_value(&led_g, !gpio_get_value(&led_g));
+        //    gpio_set_val(&led_g, !gpio_get_val(&led_g));
         //}
 
-        if (!gpio_get_value(&sen_sdo)) {
+        if (!gpio_get_val(&sen_sdo)) {
             uint32_t flags;
             static int cnt = 0;
             static int sum = 0;
@@ -155,10 +172,10 @@ void app_main(void)
                 int force = sum / 8;
                 sum = cnt = 0;
                 if (csa.force_rpt_en) {
-                    cdn_pkt_t *pkt = cdn_pkt_get(dft_ns.free_pkts);
+                    cdn_pkt_t *pkt = cdn_pkt_alloc(sock_force_rpt.ns);
                     if (pkt) {
-                        cdn_init_pkt(pkt);
                         pkt->dst = csa.force_rpt_dst;
+                        cdn_pkt_prepare(&sock_force_rpt, pkt);
                         pkt->dat[0] = 0x40;
                         pkt->len = 5;
                         memcpy(pkt->dat + 1, &force, 4);
@@ -185,28 +202,26 @@ void app_main(void)
 }
 
 
-void HAL_GPIO_EXTI_Falling_Callback(uint16_t GPIO_Pin)
+void EXTI2_3_IRQHandler(void)
 {
-    if (GPIO_Pin == r_int.num) {
-        cdctl_int_isr(&r_dev);
-    } else if (GPIO_Pin == sen_int.num) {
-        limit_det_isr();
-    }
+    __HAL_GPIO_EXTI_CLEAR_FALLING_IT(CD_INT_Pin);
+    cdctl_int_isr(&r_dev);
 }
 
-void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef *hspi)
+void EXTI4_15_IRQHandler(void)
 {
+    __HAL_GPIO_EXTI_CLEAR_FALLING_IT(SEN_INT_Pin);
+    limit_det_isr();
+}
+
+void DMA1_Channel1_IRQHandler(void)
+{
+    r_spi.dma_rx->IFCR = r_spi.dma_mask;
     cdctl_spi_isr(&r_dev);
 }
-void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
+
+void TIM1_BRK_UP_TRG_COM_IRQHandler(void)
 {
-    cdctl_spi_isr(&r_dev);
-}
-void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
-{
-    cdctl_spi_isr(&r_dev);
-}
-void HAL_SPI_ErrorCallback(SPI_HandleTypeDef *hspi)
-{
-    printf("spi error... [%08lx]\n", hspi->ErrorCode);
+    TIM1->SR &= ~TIM_FLAG_UPDATE;
+    timer_isr();
 }

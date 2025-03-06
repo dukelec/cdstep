@@ -20,11 +20,12 @@
 #define P_3F(x) (int)(x), abs(((x)-(int)(x))*1000) // "%d.%.3d"
 
 
+#define BL_ARGS             0x20000000 // first word
 #define APP_CONF_ADDR       0x0801f800 // page 63, the last page
 #define APP_CONF_VER        0x0106
 
-#define FRAME_MAX           10
-#define PACKET_MAX          60
+#define FRAME_MAX           80
+#define PACKET_MAX          80
 
 #define LOOP_FREQ   (64000000 / 64 / 200) // 5 KHz
 
@@ -39,7 +40,7 @@ typedef struct {
     uint16_t        magic_code;     // 0xcdcd
     uint16_t        conf_ver;
     uint8_t         conf_from;      // 0: default, 1: all from flash, 2: partly from flash
-    bool            do_reboot;
+    uint8_t         do_reboot;
     bool            _reserved_bl;   // keep_in_bl for bl
     bool            save_conf;
 
@@ -141,6 +142,7 @@ void raw_dbg(int idx);
 void raw_dbg_init(void);
 void raw_dbg_routine(void);
 void limit_det_isr(void);
+void timer_isr(void);
 
 extern gpio_t led_r;
 extern gpio_t led_g;

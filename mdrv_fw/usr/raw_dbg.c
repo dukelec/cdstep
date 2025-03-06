@@ -20,7 +20,7 @@ void raw_dbg(int idx)
 
     if (!(csa.dbg_raw_msk & (1 << idx))) {
         if (pkt_raw[idx]) {
-            list_put(dft_ns.free_pkts, &pkt_raw[idx]->node);
+            cdn_pkt_free(&dft_ns, pkt_raw[idx]);
             pkt_raw[idx] = NULL;
         }
         return;
@@ -33,16 +33,16 @@ void raw_dbg(int idx)
     }
 
     if (!pkt_less && !pkt_raw[idx]) {
-        if (dft_ns.free_pkts->len < 5) {
+        if (dft_ns.free_pkt->len < 5 || dft_ns.free_frm->len < 5) {
             pkt_less = true;
             return;
 
         } else {
-            pkt_raw[idx] = cdn_pkt_get(dft_ns.free_pkts);
-            cdn_init_pkt(pkt_raw[idx]);
+            pkt_raw[idx] = cdn_pkt_alloc(sock_raw_dbg.ns);
             pkt_raw[idx]->dst = csa.dbg_raw_dst;
+            cdn_pkt_prepare(&sock_raw_dbg, pkt_raw[idx]);
             pkt_raw[idx]->dat[0] = 0x40 | idx;
-            *(uint32_t *)(pkt_raw[idx]->dat + 1) = csa.loop_cnt;
+            put_unaligned32(csa.loop_cnt, pkt_raw[idx]->dat + 1);
             pkt_raw[idx]->len = 5;
         }
     }
@@ -59,7 +59,7 @@ void raw_dbg(int idx)
     }
 
     if (pkt_raw[idx]->len >= csa.dbg_raw_th) {
-        list_put(&raw_pend, &pkt_raw[idx]->node);
+        cdn_list_put(&raw_pend, pkt_raw[idx]);
         pkt_raw[idx] = NULL;
     }
 }
@@ -72,7 +72,7 @@ void raw_dbg_init(void)
 void raw_dbg_routine(void)
 {
     if (frame_free_head.len > 1) {
-        cdn_pkt_t *pkt = cdn_pkt_get(&raw_pend);
+        cdn_pkt_t *pkt = cdn_list_get(&raw_pend);
         if (pkt)
             cdn_sock_sendto(&sock_raw_dbg, pkt);
     }
