@@ -145,5 +145,6 @@ extern gpio_t led_r;
 extern gpio_t led_g;
 extern cdn_ns_t dft_ns;
 extern list_head_t frame_free_head;
+extern cdctl_dev_t r_dev;
 
 #endif
