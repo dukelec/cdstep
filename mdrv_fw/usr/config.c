@@ -229,7 +229,7 @@ void csa_list_show(void)
     CSA_SHOW(1, qxchg_set, "Config the write data components for quick-exchange channel");
     CSA_SHOW(1, qxchg_ret, "Config the return data components for quick-exchange channel");
     CSA_SHOW(1, qxchg_ro, "Config the return data components for the read only quick-exchange channel");
-    d_info("\n"); debug_flush(true);
+    d_info("\n"); debug_flush(true); while (r_dev.tx_head.len) {}
 
     CSA_SHOW(0, force_trigger_en, "Force trigger enable");
     CSA_SHOW(0, force_protection, "Set force protection");
@@ -278,5 +278,5 @@ void csa_list_show(void)
 
     CSA_SHOW(0, loop_cnt, "Count for plot");
     CSA_SHOW(0, string_test, "String test");
-    d_debug("\n"); debug_flush(true);
+    d_debug("\n"); debug_flush(true); while (r_dev.tx_head.len) {}
 }
