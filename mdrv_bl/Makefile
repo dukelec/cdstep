@@ -113,7 +113,7 @@ CPU = -mcpu=cortex-m0plus
 
 
 # mcu
-MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI) -Wdouble-promotion # -u _printf_float
+MCU = $(CPU) -mthumb $(FPU) $(FLOAT-ABI) -Wdouble-promotion -Wabsolute-value # -u _printf_float
 
 # macros for gcc
 # AS defines
