@@ -19,7 +19,6 @@ gpio_t led_g = { .group = LED_G_GPIO_Port, .num = LED_G_Pin };
 
 uart_t debug_uart = { .huart = &huart1 };
 
-static gpio_t r_rst = { .group = OLD_CD_RST_GPIO_Port, .num = OLD_CD_RST_Pin };
 static gpio_t r_cs = { .group = CD_CS_GPIO_Port, .num = CD_CS_Pin };
 static spi_t r_spi = { .hspi = &hspi1, .ns_pin = &r_cs };
 
@@ -43,7 +42,7 @@ static void device_init(void)
     for (i = 0; i < PACKET_MAX; i++)
         cdn_list_put(&packet_free_head, &packet_alloc[i]);
 
-    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi, &r_rst);
+    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi);
     if (!csa.keep_in_bl) {
         cdctl_set_baud_rate(&r_dev, 115200, 115200);
         cdctl_flush(&r_dev);
@@ -88,6 +87,7 @@ void app_main(void)
     if (!csa.keep_in_bl)
         csa.dbg_en = false; // silence
     debug_init(&dft_ns, &csa.dbg_dst, &csa.dbg_en);
+    delay_systick(50);
     device_init();
     common_service_init();
     printf("bl conf: %s, bl_args: %08lx\n", csa.conf_from ? "load from flash" : "use default", *bl_args);
@@ -97,12 +97,12 @@ void app_main(void)
     bool update_baud = csa.keep_in_bl;
 
     while (true) {
-        if (get_systick() - t_last > (update_baud ? 100000 : 200000) / SYSTICK_US_DIV) {
+        if (get_systick() - t_last > (update_baud ? 100000 : 200000) / CD_SYSTICK_US_DIV) {
             t_last = get_systick();
             gpio_set_val(&led_g, !gpio_get_val(&led_g));
         }
 
-        if (!csa.keep_in_bl && !update_baud && get_systick() > 1000000 / SYSTICK_US_DIV) {
+        if (!csa.keep_in_bl && !update_baud && get_systick() > 1000000 / CD_SYSTICK_US_DIV) {
             update_baud = true;
             if (csa.bus_cfg.baud_l != 115200 || csa.bus_cfg.baud_h != 115200) {
                 cdctl_set_baud_rate(&r_dev, csa.bus_cfg.baud_l, csa.bus_cfg.baud_h);
@@ -111,7 +111,7 @@ void app_main(void)
             csa.dbg_en = dbg_en_bk;
         }
 
-        if (!csa.keep_in_bl && get_systick() > 2000000 / SYSTICK_US_DIV)
+        if (!csa.keep_in_bl && get_systick() > 2000000 / CD_SYSTICK_US_DIV)
             jump_to_app();
 
         cdctl_routine(&r_dev);

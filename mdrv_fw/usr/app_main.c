@@ -45,7 +45,7 @@ static void device_init(void)
         cdn_list_put(&packet_free_head, &packet_alloc[i]);
 
     spi_wr_init(&r_spi);
-    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi, NULL, &r_int, EXTI2_3_IRQn);
+    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi, &r_int, EXTI2_3_IRQn);
 
     cdn_add_intf(&dft_ns, &r_dev.cd_dev, csa.bus_net, csa.bus_cfg.mac);
 }
