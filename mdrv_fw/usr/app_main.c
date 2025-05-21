@@ -58,10 +58,10 @@ static void dump_hw_status(void)
     if (get_systick() - t_l > 5000) {
         t_l = get_systick();
 
-        d_debug("ctl: state %d, t_len %d, r_len %d, irq %d\n",
+        d_debug("ctl: state %d, t_len %ld, r_len %ld, irq %d\n",
                 r_dev.state, r_dev.tx_head.len, r_dev.rx_head.len,
                 !gpio_get_val(r_dev.int_n));
-        d_debug("  r_cnt %d (lost %d, err %d, no-free %d), t_cnt %d (cd %d, err %d)\n",
+        d_debug("  r_cnt %ld (lost %ld, err %ld, no-free %ld), t_cnt %ld (cd %ld, err %ld)\n",
                 r_dev.rx_cnt, r_dev.rx_lost_cnt, r_dev.rx_error_cnt,
                 r_dev.rx_no_free_node_cnt,
                 r_dev.tx_cnt, r_dev.tx_cd_cnt, r_dev.tx_error_cnt);
@@ -86,22 +86,18 @@ void app_main(void)
     HAL_NVIC_SetPriority(EXTI4_15_IRQn, 2, 0);
     HAL_NVIC_SetPriority(TIM1_BRK_UP_TRG_COM_IRQn, 1, 0);
 
-    debug_init(&dft_ns, &csa.dbg_dst, &csa.dbg_en);
     device_init();
     common_service_init();
-    raw_dbg_init();
-    printf("conf (mdrv-step): %s\n", csa.conf_from ? "load from flash" : "use default");
     d_info("conf (mdrv-step): %s\n", csa.conf_from ? "load from flash" : "use default");
-    d_info("\x1b[92mColor Test\x1b[0m and \x1b[93mAnother Color\x1b[0m...\n");
 
     app_motor_init();
-
     HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
     HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
     HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
     HAL_NVIC_EnableIRQ(TIM1_BRK_UP_TRG_COM_IRQn);
 
     csa_list_show();
+    d_info("\x1b[92mColor Test\x1b[0m and \x1b[93mAnother Color\x1b[0m...\n");
     delay_systick(100);
     gpio_set_val(&led_r, 0);
     //uint32_t t_last = get_systick();
@@ -114,8 +110,6 @@ void app_main(void)
         app_motor_routine();
         cdn_routine(&dft_ns); // handle cdnet
         common_service_routine();
-        raw_dbg_routine();
-        debug_flush(false);
 
         if (*stack_check != 0xababcdcd12123434) {
             printf("stack overflow\n");

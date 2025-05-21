@@ -46,7 +46,6 @@ typedef struct {
     uint8_t         bus_net;
     cdctl_cfg_t     bus_cfg;
     bool            dbg_en;
-    cdn_sockaddr_t  dbg_dst;
 
     uint8_t         _keep[512]; // covers the areas in the app csa that need to be saved
     
@@ -57,6 +56,9 @@ typedef struct {
 
 extern csa_t csa;
 extern const csa_t csa_dft;
+
+extern cdctl_dev_t r_dev;
+extern list_head_t frame_free_head;
 
 int flash_erase(uint32_t addr, uint32_t len);
 int flash_write(uint32_t addr, uint32_t len, const uint8_t *buf);
