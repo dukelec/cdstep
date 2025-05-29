@@ -7,7 +7,7 @@ RS-485 wire housing: Molex 5264 (4 pin)
 
 Download this project:
 ```
-git clone --recursive https://github.com/dukelec/cdstep.git
+git clone --recursive https://github.com/dukelec/cdstep
 ```
 
 ## Protocol
