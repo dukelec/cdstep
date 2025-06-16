@@ -19,6 +19,7 @@ gpio_t led_g = { .group = LED_G_GPIO_Port, .num = LED_G_Pin };
 
 uart_t debug_uart = { .huart = &huart1 };
 
+static gpio_t r_rst = { .group = OLD_CD_RST_GPIO_Port, .num = OLD_CD_RST_Pin };
 static gpio_t r_cs = { .group = CD_CS_GPIO_Port, .num = CD_CS_Pin };
 static spi_t r_spi = { .hspi = &hspi1, .ns_pin = &r_cs };
 
@@ -86,6 +87,9 @@ void app_main(void)
     csa.keep_in_bl = *bl_args == 0xcdcd0001;
     if (!csa.keep_in_bl)
         csa.dbg_en = false; // silence
+    gpio_set_low(&r_rst);
+    delay_systick(2);
+    gpio_set_high(&r_rst);
     delay_systick(50);
     device_init();
     common_service_init();
