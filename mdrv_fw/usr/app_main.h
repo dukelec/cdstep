@@ -55,7 +55,11 @@ typedef struct {
     regr_t          qxchg_ret[5];
     regr_t          qxchg_ro[5];
 
-    uint8_t         _reserved1[10];
+    bool            force_trigger_en;
+    uint8_t         _reserved1[5];
+    uint16_t        force_protection;
+    uint16_t        force_threshold;
+
     //uint8_t       dbg_str_msk;
     //uint16_t      dbg_str_skip;    // for period print debug
 
@@ -146,5 +150,6 @@ extern gpio_t led_g;
 extern cdn_ns_t dft_ns;
 extern list_head_t frame_free_head;
 extern cdctl_dev_t r_dev;
+extern int force_rx;
 
 #endif

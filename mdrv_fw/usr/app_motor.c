@@ -8,6 +8,7 @@
  */
 
 #include <math.h>
+#include <limits.h>
 #include "app_main.h"
 
 extern TIM_HandleTypeDef htim1;
@@ -22,6 +23,9 @@ static gpio_t drv_md3 = { .group = DRV_MD3_GPIO_Port, .num = DRV_MD3_Pin };
 static gpio_t drv_dir = { .group = DRV_DIR_GPIO_Port, .num = DRV_DIR_Pin };
 static gpio_t drv_mo = { .group = DRV_MO_GPIO_Port, .num = DRV_MO_Pin };
 static bool limit_disable = false;
+static bool in_force_protect = false;
+static int force_ofs_const = INT_MAX;
+static int force_ofs = 0;
 
 static int32_t pos_at_cnt0 = 0; // backup cur_pos at start
 static bool is_last_0 = false;  // for set_pwm
@@ -78,7 +82,10 @@ uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
     local_irq_save(flags);
     if (csa.state && !csa.tc_state && csa.tc_pos != csa.cal_pos) {
         local_irq_restore(flags);
-        d_debug("run motor ...\n");
+        force_ofs = force_rx;
+        if (force_ofs_const == INT_MAX)
+            force_ofs_const = force_rx;
+        d_debug("run motor ..., f: %d, trg: %d\n", force_ofs, csa.force_trigger_en);
         csa.tc_state = 1;
     } else {
         local_irq_restore(flags);
@@ -112,6 +119,8 @@ uint8_t drv_mo_r_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 
 void app_motor_init(void)
 {
+    csa.force_trigger_en = false;
+
     HAL_DAC_Start(&hdac1, DAC_CHANNEL_2);
     HAL_DAC_SetValue(&hdac1, DAC_CHANNEL_2, DAC_ALIGN_12B_R, (csa.ref_volt / 1000.0f) * 0x0fff / 3.3f);
 
@@ -166,7 +175,7 @@ void app_motor_routine(void)
 static inline void t_curve_compute(void)
 {
     static double p64f = (double)INFINITY;
-    uint32_t accel = limit_disable ? csa.tc_accel_emg : csa.tc_accel;
+    uint32_t accel = (limit_disable || in_force_protect) ? csa.tc_accel_emg : csa.tc_accel;
     float v_step = (float)accel / LOOP_FREQ;
 
     if (!csa.tc_state) {
@@ -205,6 +214,9 @@ static inline void t_curve_compute(void)
             csa.tc_state = 0;
             csa.tc_vc = 0;
             csa.tc_ac = 0;
+            d_debug("tc: arrive pos %d, trg %d\n", csa.tc_pos, csa.force_trigger_en);
+            csa.force_trigger_en = false;
+            in_force_protect = false;
             p64f = csa.cal_pos;
         }
     } else {
@@ -224,6 +236,23 @@ void timer_isr(void)
     } else {
         int counter_dir = gpio_get_val(&drv_dir) ? 1 : -1;
         csa.cur_pos = pos_at_cnt0 + __HAL_TIM_GET_COUNTER(&htim2) * counter_dir;
+
+        if (csa.tc_state) {
+            if (force_rx - force_ofs_const <= -csa.force_protection * 100) {
+                csa.tc_pos = 0;
+                csa.tc_state = 1;
+                limit_disable = true; // avoid trigger limit switch
+                if (!in_force_protect)
+                    d_debug("force protect f: %d dlt: %d @%d\n", force_rx, force_rx - force_ofs_const, csa.cur_pos);
+                in_force_protect = true;
+
+            } else if (csa.force_trigger_en && force_rx - force_ofs <= -csa.force_threshold * 100) {
+                csa.force_trigger_en = false;
+                csa.tc_pos = csa.cur_pos;
+                csa.tc_state = 1;
+                d_debug("force trg f: %d dlt: %d @%d\n", force_rx, force_rx - force_ofs, csa.cur_pos);
+            }
+        }
 
         t_curve_compute();
         pid_i_set_target(&csa.pid_pos, csa.cal_pos);
