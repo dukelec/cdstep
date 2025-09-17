@@ -53,7 +53,6 @@ const csa_t csa_dft = {
         },
 
         .dbg_raw_msk = 0,
-        .dbg_raw_th = 200,
         .dbg_raw = {
                 {
                         { .offset = offsetof(csa_t, tc_pos), .size = 4 },
@@ -228,7 +227,6 @@ void csa_list_show(void)
     d_info("\n");
 
     CSA_SHOW(1, dbg_raw_msk, "Config which raw debug data to be send");
-    CSA_SHOW(0, dbg_raw_th, "Config raw debug data package size");
     CSA_SHOW(1, dbg_raw[0], "Config raw debug for plot0");
     CSA_SHOW(1, dbg_raw[1], "Config raw debug for plot1");
     d_info("\n");
