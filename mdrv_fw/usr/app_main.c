@@ -69,6 +69,9 @@ static void dump_hw_status(void)
 }
 #endif
 
+int force_rx = 0;
+static cdn_sock_t sock_force_rx = { .port = 0x0b, .ns = &dft_ns };
+
 void app_main(void)
 {
     uint64_t *stack_check = (uint64_t *)((uint32_t)&end + 256);
@@ -91,6 +94,9 @@ void app_main(void)
     d_info("conf (mdrv-step): %s\n", csa.conf_from ? "load from flash" : "use default");
 
     app_motor_init();
+    cdn_sock_bind(&sock_force_rx);
+    uint32_t t_force = 0;
+
     HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
     HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
     HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
@@ -106,6 +112,19 @@ void app_main(void)
         //    t_last = get_systick();
         //    gpio_set_val(&led_g, !gpio_get_val(&led_g));
         //}
+
+        cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock_force_rx);
+        if (pkt) {
+            force_rx = get_unaligned32(pkt->dat + 1);
+            cdn_pkt_free(sock_force_rx.ns, pkt);
+            t_force = get_systick();
+            d_verbose("force rx: %d, t: %d\n", force_rx, t_force);
+        }
+        if (csa.state && get_systick() - t_force > 400) {
+            csa.state = 0;
+            motor_w_hook(0, 0, NULL);
+        }
+
         //dump_hw_status();
         app_motor_routine();
         cdn_routine(&dft_ns); // handle cdnet

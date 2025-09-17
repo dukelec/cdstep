@@ -35,7 +35,7 @@ static void init_info_str(void)
 {
     // M: model; S: serial string; HW: hardware version; SW: software version
     get_uid(cpu_id);
-    sprintf(info_str, "M: cdstep; S: %s; SW: %s", cpu_id, SW_VER);
+    sprintf(info_str, "M: cdstep-z; S: %s; SW: %s", cpu_id, SW_VER);
     d_info("info: %s\n", info_str);
 }
 

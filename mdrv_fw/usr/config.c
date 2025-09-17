@@ -52,6 +52,9 @@ const csa_t csa_dft = {
                 { .offset = offsetof(csa_t, cur_pos), .size = 4 * 2 }
         },
 
+        .force_protection = 700,    // x100
+        .force_threshold = 100,     // x100
+
         .dbg_raw_msk = 0,
         .dbg_raw = {
                 {
@@ -105,6 +108,8 @@ void load_conf(void)
         csa.tc_pos = 0;
         csa.pid_pos.out_max = csa_dft.pid_pos.out_max;
         csa.pid_pos.out_min = csa_dft.pid_pos.out_min;
+        if (csa.force_protection < csa.force_threshold)
+            csa.force_protection = csa.force_threshold;
     }
 }
 
@@ -225,6 +230,11 @@ void csa_list_show(void)
     CSA_SHOW(1, qxchg_set, "Config the write data components for quick-exchange channel");
     CSA_SHOW(1, qxchg_ret, "Config the return data components for quick-exchange channel");
     d_info("\n");
+
+    CSA_SHOW(0, force_trigger_en, "Force trigger enable");
+    CSA_SHOW(0, force_protection, "Set force protection");
+    CSA_SHOW(0, force_threshold, "Set force threshold");
+    d_debug("\n");
 
     CSA_SHOW(1, dbg_raw_msk, "Config which raw debug data to be send");
     CSA_SHOW(1, dbg_raw[0], "Config raw debug for plot0");

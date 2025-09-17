@@ -53,7 +53,13 @@ typedef struct {
     regr_t          qxchg_mcast;     // for multicast
     regr_t          qxchg_set[5];
     regr_t          qxchg_ret[5];
-    uint8_t         _reserved1[36];
+    uint8_t         _reserved1[20];
+
+    bool            force_trigger_en;
+    uint8_t         _reserved10[5];
+    uint16_t        force_protection;
+    uint16_t        force_threshold;
+    uint8_t         _reserved11[6];
 
     uint8_t         dbg_raw_msk;
     uint8_t         _reserved12;
@@ -139,5 +145,6 @@ extern gpio_t led_g;
 extern cdn_ns_t dft_ns;
 extern list_head_t frame_free_head;
 extern cdctl_dev_t r_dev;
+extern int force_rx;
 
 #endif
