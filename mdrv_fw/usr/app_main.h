@@ -53,8 +53,12 @@ typedef struct {
     regr_t          qxchg_mcast;     // for multicast
     regr_t          qxchg_set[5];
     regr_t          qxchg_ret[5];
-    uint8_t         _reserved1[36];
+    uint8_t         _reserved1[20];
 
+    bool            force_rpt_en;
+    cdn_sockaddr_t  force_rpt_dst;
+
+    uint8_t         _reserved11[8];
     uint8_t         dbg_raw_msk;
     uint8_t         _reserved12;
     regr_t          dbg_raw[2][6];
