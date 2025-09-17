@@ -55,7 +55,10 @@ typedef struct {
     regr_t          qxchg_ret[5];
     regr_t          qxchg_ro[5];
 
-    uint8_t         _reserved1[10];
+    bool            force_rpt_en;
+    cdn_sockaddr_t  force_rpt_dst;
+
+    uint8_t         _reserved1[2];
     //uint8_t       dbg_str_msk;
     //uint16_t      dbg_str_skip;    // for period print debug
 

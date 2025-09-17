@@ -53,6 +53,9 @@ const csa_t csa_dft = {
                 { .offset = offsetof(csa_t, cur_pos), .size = 4 * 2 }
         },
 
+        .force_rpt_en = false,
+        .force_rpt_dst = { .addr = {0x80, 0x00, 0xe1}, .port = 0xb },
+
         .dbg_raw_dst = { .addr = {0x80, 0x00, 0x00}, .port = 0xa },
         .dbg_raw_msk = 0,
         .dbg_raw_th = 200,
@@ -225,6 +228,11 @@ void csa_list_show(void)
     CSA_SHOW(1, qxchg_ret, "Config the return data components for quick-exchange channel");
     CSA_SHOW(1, qxchg_ro, "Config the return data components for the read only quick-exchange channel");
     d_info("\n"); debug_flush(true); while (r_dev.tx_head.len) {}
+
+    CSA_SHOW(0, force_rpt_en, "1: Report force data to target, 0: do not report");
+    CSA_SHOW_SUB(2, force_rpt_dst, cdn_sockaddr_t, addr, "Send force data to this address");
+    CSA_SHOW_SUB(1, force_rpt_dst, cdn_sockaddr_t, port, "Send force data to this port");
+    d_debug("\n"); debug_flush(true);
 
     CSA_SHOW_SUB(2, dbg_raw_dst, cdn_sockaddr_t, addr, "Send raw debug data to this address");
     CSA_SHOW_SUB(1, dbg_raw_dst, cdn_sockaddr_t, port, "Send raw debug data to this port");

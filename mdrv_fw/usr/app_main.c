@@ -15,6 +15,9 @@ gpio_t led_g = { .group = LED_G_GPIO_Port, .num = LED_G_Pin };
 
 static gpio_t r_int = { .group = CD_INT_GPIO_Port, .num = CD_INT_Pin };
 static gpio_t r_cs = { .group = CD_CS_GPIO_Port, .num = CD_CS_Pin };
+static gpio_t sen_clk = { .group = SEN_SCK_GPIO_Port, .num = SEN_SCK_Pin };
+static gpio_t sen_sdo = { .group = SEN_SDO_GPIO_Port, .num = SEN_SDO_Pin };
+
 static spi_t r_spi = {
         .spi = SPI1,
         .ns_pin = &r_cs,
@@ -69,6 +72,30 @@ static void dump_hw_status(void)
 }
 #endif
 
+static int read_force(void)
+{
+    int ret_val = 0;
+
+    delay_us(1);
+    for (int i = 0; i < 24; i++) {
+        for (int i = 0; i < 2; i++) // delay
+            gpio_set_val(&sen_clk, 1);
+        for (int i = 0; i < 1; i++) // delay
+            gpio_set_val(&sen_clk, 0);
+        ret_val = (ret_val << 1) | gpio_get_val(&sen_sdo);
+    }
+
+    for (int i = 0; i < 3; i++) // delay
+        gpio_set_val(&sen_clk, 1);
+    gpio_set_val(&sen_clk, 0);
+
+    if (ret_val & 0x800000)
+        ret_val |= 0xff000000;
+    return ret_val;
+}
+
+static cdn_sock_t sock_force_rpt = { .port = 0xb, .ns = &dft_ns, .tx_only = true };
+
 void app_main(void)
 {
     uint64_t *stack_check = (uint64_t *)((uint32_t)&end + 256);
@@ -95,6 +122,7 @@ void app_main(void)
     d_info("\x1b[92mColor Test\x1b[0m and \x1b[93mAnother Color\x1b[0m...\n");
 
     app_motor_init();
+    cdn_sock_bind(&sock_force_rpt);
 
     HAL_NVIC_EnableIRQ(DMA1_Channel1_IRQn);
     HAL_NVIC_EnableIRQ(EXTI2_3_IRQn);
@@ -110,6 +138,33 @@ void app_main(void)
         //    t_last = get_systick();
         //    gpio_set_val(&led_g, !gpio_get_val(&led_g));
         //}
+
+        if (!gpio_get_val(&sen_sdo)) {
+            uint32_t flags;
+            static int cnt = 0;
+            static int sum = 0;
+            local_irq_save(flags);
+            sum += read_force();
+            local_irq_restore(flags);
+            if (++cnt == 8) {
+                int force = sum / 8;
+                sum = cnt = 0;
+                if (csa.force_rpt_en) {
+                    cdn_pkt_t *pkt = cdn_pkt_alloc(sock_force_rpt.ns);
+                    if (pkt) {
+                        pkt->dst = csa.force_rpt_dst;
+                        cdn_pkt_prepare(&sock_force_rpt, pkt);
+                        pkt->dat[0] = 0x40;
+                        pkt->len = 5;
+                        memcpy(pkt->dat + 1, &force, 4);
+                        cdn_sock_sendto(&sock_force_rpt, pkt);
+
+                        d_debug("rpt f: %d\n", force);
+                    }
+                }
+            }
+        }
+
         //dump_hw_status();
         app_motor_routine();
         cdn_routine(&dft_ns); // handle cdnet
