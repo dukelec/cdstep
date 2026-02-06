@@ -22,7 +22,7 @@
 
 #define BL_ARGS             0x20000000 // first word
 #define APP_CONF_ADDR       0x0801f800 // page 63, the last page
-#define APP_CONF_VER        0x0106
+#define APP_CONF_VER        0x0200
 
 #define FRAME_MAX           80
 #define PACKET_MAX          80

@@ -60,7 +60,8 @@ const csa_t csa_dft = {
                         { .offset = offsetof(csa_t, cal_pos), .size = 4 },
                         { .offset = offsetof(csa_t, cur_pos), .size = 4 * 3 } // + tc_vc, tc_va
                 }, {
-                        { .offset = offsetof(csa_t, pid_pos) + offsetof(pid_i_t, target), .size = 4 * 3 },
+                        { .offset = offsetof(csa_t, pid_pos) + offsetof(pid_i_t, target), .size = 4 * 2 },
+                        { .offset = offsetof(csa_t, cur_pos), .size = 4 },
                         { .offset = offsetof(csa_t, cal_speed), .size = 4 },
                 }
         },
@@ -74,7 +75,7 @@ const csa_t csa_dft = {
         .tc_accel_emg = 8000000,
 
         .pid_pos = {
-                .kp = 50, .ki = 5000, .kd = 0.02,
+                .kp = 50, .ki = 5000,
                 .out_min = -2000000,    // 64000000/32
                 .out_max = 2000000,     // limit output speed
                 .period = 1.0f / LOOP_FREQ
@@ -246,7 +247,6 @@ void csa_list_show(void)
 
     CSA_SHOW_SUB(0, pid_pos, pid_i_t, kp, "");
     CSA_SHOW_SUB(0, pid_pos, pid_i_t, ki, "");
-    CSA_SHOW_SUB(0, pid_pos, pid_i_t, kd, "");
     //CSA_SHOW_SUB(0, pid_pos, pid_i_t, out_min, "");
     //CSA_SHOW_SUB(0, pid_pos, pid_i_t, out_max, "");
     CSA_SHOW(0, cal_pos, "PID input position");
