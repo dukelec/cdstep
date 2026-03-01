@@ -37,7 +37,7 @@ The payload is encoded using the CDNET protocol. For detailed information, pleas
 
 CDBUS GUI Tool: https://github.com/dukelec/cdbus_gui
 
-After power on, first write 1 to `state`, then write the target position to `tc_pos`, then the stepper motor will rotate.
+After power on, first write 1 to `state`, then write the target position to `tp_pos`, then the stepper motor will rotate.
 
 <img src="doc/cdbus_gui.png">
 

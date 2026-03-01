@@ -90,9 +90,10 @@ cdnet/utils/hex_dump.c \
 utils/trap_planner.c \
 utils/pid_i.c \
 usr/config.c \
-usr/comm_services.c \
+usr/comm_service.c \
 usr/app_main.c \
 usr/app_motor.c \
+usr/step_pwm.c \
 usr/raw_dbg.c
 
 # ASM sources

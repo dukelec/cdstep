@@ -14,6 +14,7 @@
 #include "cd_debug.h"
 #include "cdbus_uart.h"
 #include "cdctl_it.h"
+#include "step_pwm.h"
 #include "pid_i.h"
 #include "trap_planner.h"
 

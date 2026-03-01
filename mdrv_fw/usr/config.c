@@ -60,9 +60,10 @@ const csa_t csa_dft = {
                         { .offset = offsetof(csa_t, cal_pos), .size = 4 },
                         { .offset = offsetof(csa_t, cur_pos), .size = 4 * 3 } // + tp_vel_out, tp_acc_brake
                 }, {
-                        { .offset = offsetof(csa_t, pid_pos) + offsetof(pid_i_t, target), .size = 4 * 2 },
+                        { .offset = offsetof(csa_t, pid_pos) + offsetof(pid_i_t, target), .size = 4 },
                         { .offset = offsetof(csa_t, cur_pos), .size = 4 },
                         { .offset = offsetof(csa_t, cal_speed), .size = 4 },
+                        { .offset = offsetof(csa_t, tp_state), .size = 1 }
                 }
         },
 
@@ -72,10 +73,10 @@ const csa_t csa_dft = {
 
         .tp_speed = 100000,
         .tp_accel = 200000,
-        .tp_accel_emg = 8000000,
+        .tp_accel_emg = 2000000,
 
         .pid_pos = {
-                .kp = 50,
+                .kp = 500,
                 .out_min = -2000000,    // 64000000/32
                 .out_max = 2000000,     // limit output speed
                 .dt = 1.0f / LOOP_FREQ
@@ -214,10 +215,10 @@ void csa_list_show(void)
     CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, baud_l, "RS-485 baud rate for first byte");
     CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, baud_h, "RS-485 baud rate for follow bytes");
     CSA_SHOW_SUB(1, bus_cfg, cdctl_cfg_t, filter_m, "Multicast address");
-    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, mode, "0: Arbitration, 1: Break Sync");
+    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, mode, "0: Traditional, 1: Arbitration, 2: Break Sync");
     CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, tx_permit_len, "Allow send wait time");
     CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, max_idle_len, "Max idle wait time for BS mode");
-    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, tx_pre_len, " Active TX_EN before TX");
+    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, tx_pre_len, "Active TX_EN before TX");
     d_debug("\n");
 
     CSA_SHOW(0, dbg_en, "1: Report debug message to host, 0: do not report");
