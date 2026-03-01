@@ -10,13 +10,13 @@
 #include "app_main.h"
 
 regr_t csa_w_allow[] = {
-        { .offset = offsetof(csa_t, magic_code), .size = offsetof(csa_t, tc_state) - offsetof(csa_t, magic_code) },
+        { .offset = offsetof(csa_t, magic_code), .size = offsetof(csa_t, tp_state) - offsetof(csa_t, magic_code) },
         { .offset = offsetof(csa_t, string_test), .size = 10 }
 };
 
 csa_hook_t csa_w_hook[] = {
         {
-            .range = { .offset = offsetof(csa_t, tc_pos), .size = offsetof(csa_t, tc_state) - offsetof(csa_t, tc_pos) },
+            .range = { .offset = offsetof(csa_t, tp_pos), .size = offsetof(csa_t, tp_state) - offsetof(csa_t, tp_pos) },
             .after = motor_w_hook
         }, {
             .range = { .offset = offsetof(csa_t, ref_volt), .size = sizeof(((csa_t *)0)->ref_volt) },
@@ -46,7 +46,7 @@ const csa_t csa_dft = {
 
         .qxchg_mcast = { .offset = 0, .size = 4 * 3},
         .qxchg_set = {
-                { .offset = offsetof(csa_t, tc_pos), .size = 4 * 3 }
+                { .offset = offsetof(csa_t, tp_pos), .size = 4 * 3 }
         },
         .qxchg_ret = {
                 { .offset = offsetof(csa_t, cur_pos), .size = 4 * 2 }
@@ -55,10 +55,10 @@ const csa_t csa_dft = {
         .dbg_raw_msk = 0,
         .dbg_raw = {
                 {
-                        { .offset = offsetof(csa_t, tc_pos), .size = 4 },
-                        { .offset = offsetof(csa_t, tc_state), .size = 1 },
+                        { .offset = offsetof(csa_t, tp_pos), .size = 4 },
+                        { .offset = offsetof(csa_t, tp_state), .size = 1 },
                         { .offset = offsetof(csa_t, cal_pos), .size = 4 },
-                        { .offset = offsetof(csa_t, cur_pos), .size = 4 * 3 } // + tc_vc, tc_va
+                        { .offset = offsetof(csa_t, cur_pos), .size = 4 * 3 } // + tp_vel_out, tp_acc_brake
                 }, {
                         { .offset = offsetof(csa_t, pid_pos) + offsetof(pid_i_t, target), .size = 4 * 2 },
                         { .offset = offsetof(csa_t, cur_pos), .size = 4 },
@@ -70,15 +70,15 @@ const csa_t csa_dft = {
         .md_val = 7,       // 3'b111
         .lim_en = true,
 
-        .tc_speed = 100000,
-        .tc_accel = 200000,
-        .tc_accel_emg = 8000000,
+        .tp_speed = 100000,
+        .tp_accel = 200000,
+        .tp_accel_emg = 8000000,
 
         .pid_pos = {
-                .kp = 50, .ki = 5000,
+                .kp = 50,
                 .out_min = -2000000,    // 64000000/32
                 .out_max = 2000000,     // limit output speed
-                .period = 1.0f / LOOP_FREQ
+                .dt = 1.0f / LOOP_FREQ
         },
 
         .string_test = "hello"
@@ -103,7 +103,8 @@ void load_conf(void)
     }
     if (csa.conf_from) {
         memset(&csa.do_reboot, 0, 3);
-        csa.tc_pos = 0;
+        csa.tp_pos = 0;
+        csa.pid_pos.dt = csa_dft.pid_pos.dt;
         csa.pid_pos.out_max = csa_dft.pid_pos.out_max;
         csa.pid_pos.out_min = csa_dft.pid_pos.out_min;
     }
@@ -239,14 +240,13 @@ void csa_list_show(void)
     CSA_SHOW(0, lim_en, "Enable limit switch");
     d_debug("\n");
 
-    CSA_SHOW(0, tc_pos, "Set target position");
-    CSA_SHOW(0, tc_speed, "Set target speed");
-    CSA_SHOW(0, tc_accel, "Set target accel");
-    CSA_SHOW(0, tc_accel_emg, "Set emergency accel");
+    CSA_SHOW(0, tp_pos, "Set target position");
+    CSA_SHOW(0, tp_speed, "Set target speed");
+    CSA_SHOW(0, tp_accel, "Set target accel");
+    CSA_SHOW(0, tp_accel_emg, "Set emergency accel");
     d_debug("\n");
 
     CSA_SHOW_SUB(0, pid_pos, pid_i_t, kp, "");
-    CSA_SHOW_SUB(0, pid_pos, pid_i_t, ki, "");
     //CSA_SHOW_SUB(0, pid_pos, pid_i_t, out_min, "");
     //CSA_SHOW_SUB(0, pid_pos, pid_i_t, out_max, "");
     CSA_SHOW(0, cal_pos, "PID input position");
@@ -257,10 +257,10 @@ void csa_list_show(void)
     d_debug("\n");
 
     d_debug("   // --------------- Follows are not writable: -------------------\n");
-    CSA_SHOW(0, tc_state, "t_curve: 0: stop, 1: run");
+    CSA_SHOW(0, tp_state, "trap_planner: -1: disable, 0: idle, 1: planning");
     CSA_SHOW(0, cur_pos, "Motor current position");
-    CSA_SHOW(0, tc_vc, "Motor current speed");
-    CSA_SHOW(0, tc_ac, "Motor current accel");
+    CSA_SHOW(0, tp_vel_out, "Current planned velocity");
+    CSA_SHOW(0, tp_acc_brake, "Required braking acceleration");
     d_debug("\n");
 
     CSA_SHOW(0, loop_cnt, "Count for plot");

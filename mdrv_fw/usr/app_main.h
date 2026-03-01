@@ -15,6 +15,7 @@
 #include "cdbus_uart.h"
 #include "cdctl_it.h"
 #include "pid_i.h"
+#include "trap_planner.h"
 
 #define P_2F(x) (int)(x), abs(((x)-(int)(x))*100)  // "%d.%.2d"
 #define P_3F(x) (int)(x), abs(((x)-(int)(x))*1000) // "%d.%.3d"
@@ -68,23 +69,24 @@ typedef struct {
     bool            lim_en;
     uint8_t         _reserved3[5];
 
-    int32_t         tc_pos;
-    uint32_t        tc_speed;
-    uint32_t        tc_accel;
-    uint32_t        tc_accel_emg;
+    int32_t         tp_pos;
+    uint32_t        tp_speed;
+    uint32_t        tp_accel;
+    uint32_t        tp_accel_emg;
     uint8_t         _reserved4[6];
 
     pid_i_t         pid_pos;
+    uint32_t        _reserved5[3];
     #define         _end_save cal_pos   // end of flash
     int32_t         cal_pos;
     float           cal_speed;
 
     uint8_t         state;          // 0: drv not enable, 1: drv enable
-    uint8_t         tc_state;       // t_curve: 0: stop, 1: run
+    int8_t          tp_state;       // -1: disable, 0: idle, 1: planning
     int             cur_pos;
-    float           tc_vc;
-    float           tc_ac;
-    uint8_t         _reserved5[10];
+    float           tp_vel_out;
+    float           tp_acc_brake;
+    uint8_t         _reserved6[10];
 
     uint32_t        loop_cnt;
     char            string_test[10]; // for cdbus_gui tool test
@@ -122,13 +124,13 @@ void load_conf(void);
 int save_conf(void);
 void csa_list_show(void);
 
-void common_service_init(void);
-void common_service_routine(void);
+void comm_service_init(void);
+void comm_service_poll(void);
 
 uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
 uint8_t ref_volt_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
 uint8_t drv_mo_r_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat);
-void app_motor_routine(void);
+void app_motor_maintain(void);
 void app_motor_init(void);
 void raw_dbg(int idx);
 void limit_det_isr(void);
@@ -140,4 +142,5 @@ extern cdn_ns_t dft_ns;
 extern list_head_t frame_free_head;
 extern cdctl_dev_t r_dev;
 
+#include "csa_sync.h"
 #endif

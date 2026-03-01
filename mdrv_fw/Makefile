@@ -87,11 +87,12 @@ cdnet/dev/cdctl_pll_cal.c \
 cdnet/dev/cdctl_it.c \
 cdnet/utils/cd_list.c \
 cdnet/utils/hex_dump.c \
+utils/trap_planner.c \
+utils/pid_i.c \
 usr/config.c \
-usr/common_services.c \
+usr/comm_services.c \
 usr/app_main.c \
 usr/app_motor.c \
-usr/pid_i.c \
 usr/raw_dbg.c
 
 # ASM sources
@@ -164,6 +165,7 @@ C_INCLUDES =  \
 -Icdnet/utils \
 -Icdnet/dev \
 -Icdnet/arch/stm32 \
+-Iutils \
 -Iusr
 
 

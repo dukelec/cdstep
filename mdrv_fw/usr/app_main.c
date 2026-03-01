@@ -87,7 +87,7 @@ void app_main(void)
     HAL_NVIC_SetPriority(TIM1_BRK_UP_TRG_COM_IRQn, 1, 0);
 
     device_init();
-    common_service_init();
+    comm_service_init();
     d_info("conf (mdrv-step): %s\n", csa.conf_from ? "load from flash" : "use default");
 
     app_motor_init();
@@ -107,9 +107,9 @@ void app_main(void)
         //    gpio_set_val(&led_g, !gpio_get_val(&led_g));
         //}
         //dump_hw_status();
-        app_motor_routine();
-        cdn_routine(&dft_ns); // handle cdnet
-        common_service_routine();
+        app_motor_maintain();
+        cdn_poll(&dft_ns); // handle cdnet
+        comm_service_poll();
 
         if (*stack_check != 0xababcdcd12123434) {
             printf("stack overflow\n");
