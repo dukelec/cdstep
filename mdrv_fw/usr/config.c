@@ -9,14 +9,27 @@
 
 #include "app_main.h"
 
-regr_t csa_w_allow[] = {
-        { .offset = offsetof(csa_t, magic_code), .size = offsetof(csa_t, tp_state) - offsetof(csa_t, magic_code) },
-        { .offset = offsetof(csa_t, string_test), .size = 10 }
+reg2r_t csa_w_allow[] = {
+        { .offset = offsetof(csa_t, magic_code), .size = 4 },
+        { .offset = offsetof(csa_t, do_reboot),
+                .size = offsetof(csa_t, tp_max_err) + sizeof(csa.tp_max_err) - offsetof(csa_t, do_reboot) },
+        { .offset = offsetof(csa_t, pid_pos_kp), .size = offsetof(csa_t, _end_save) - offsetof(csa_t, pid_pos_kp) },
+        { .offset = offsetof(csa_t, set_home), .size = 1 },
+        { .offset = offsetof(csa_t, state), .size = 1 },
+        { .offset = offsetof(csa_t, string_test), .size = sizeof(csa.string_test) }
 };
 
 csa_hook_t csa_w_hook[] = {
         {
-            .range = { .offset = offsetof(csa_t, tp_pos), .size = offsetof(csa_t, tp_state) - offsetof(csa_t, tp_pos) },
+            .range = { .offset = offsetof(csa_t, tp_pos),
+                    .size = offsetof(csa_t, tp_max_err) + sizeof(csa.tp_max_err) - offsetof(csa_t, tp_pos) },
+            .after = motor_w_hook
+        }, {
+            .range = { .offset = offsetof(csa_t, pid_pos_kp),
+                    .size = offsetof(csa_t, pid_pos_out_max) + sizeof(csa.pid_pos_out_max) - offsetof(csa_t, pid_pos_kp) },
+            .after = motor_w_hook
+        }, {
+            .range = { .offset = offsetof(csa_t, state), .size = 1 },
             .after = motor_w_hook
         }, {
             .range = { .offset = offsetof(csa_t, ref_volt), .size = sizeof(((csa_t *)0)->ref_volt) },
@@ -31,7 +44,7 @@ csa_hook_t csa_r_hook[] = {
         }
 };
 
-int csa_w_allow_num = sizeof(csa_w_allow) / sizeof(regr_t);
+int csa_w_allow_num = sizeof(csa_w_allow) / sizeof(reg2r_t);
 int csa_w_hook_num = sizeof(csa_w_hook) / sizeof(csa_hook_t);
 int csa_r_hook_num = sizeof(csa_r_hook) / sizeof(csa_hook_t);
 
@@ -40,8 +53,15 @@ const csa_t csa_dft = {
         .magic_code = 0xcdcd,
         .conf_ver = APP_CONF_VER,
 
-        .bus_net = 0,
-        .bus_cfg = CDCTL_CFG_DFT(0xfe),
+        .mac = 0xfe,
+        .baud_rate_l = 115200,
+        .baud_rate_h = 115200,
+        .bus_filter_m = { 0xff, 0xff },
+        .bus_mode = 1,
+        .bus_idle_wait_len = 0x0a,
+        .bus_tx_permit_len = 0x14,
+        .bus_max_idle_len = 0xc8,
+        .bus_tx_pre_len = 0x01,
         .dbg_en = false,
 
         .qxchg_mcast = { .offset = 0, .size = 4 * 3},
@@ -49,22 +69,18 @@ const csa_t csa_dft = {
                 { .offset = offsetof(csa_t, tp_pos), .size = 4 * 3 }
         },
         .qxchg_ret = {
-                { .offset = offsetof(csa_t, cur_pos), .size = 4 * 2 }
+                { .offset = CSA_OFS(meas_pos), .size = 4 },
+                { .offset = offsetof(csa_t, tp_vel_out), .size = 4 }
         },
 
-        .dbg_raw_msk = 0,
+        .dbg_raw_en = 0,
         .dbg_raw = {
-                {
-                        { .offset = offsetof(csa_t, tp_pos), .size = 4 },
-                        { .offset = offsetof(csa_t, tp_state), .size = 1 },
-                        { .offset = offsetof(csa_t, cal_pos), .size = 4 },
-                        { .offset = offsetof(csa_t, cur_pos), .size = 4 * 3 } // + tp_vel_out, tp_acc_brake
-                }, {
-                        { .offset = offsetof(csa_t, pid_pos) + offsetof(pid_i_t, target), .size = 4 },
-                        { .offset = offsetof(csa_t, cur_pos), .size = 4 },
-                        { .offset = offsetof(csa_t, cal_speed), .size = 4 },
-                        { .offset = offsetof(csa_t, tp_state), .size = 1 }
-                }
+                { .offset = offsetof(csa_t, tp_pos), .size = 4 },
+                { .offset = offsetof(csa_t, tp_state), .size = 1 },
+                { .offset = CSA_OFS(tgt_pos), .size = 4 },
+                { .offset = CSA_OFS(meas_pos), .size = 4 },
+                { .offset = CSA_OFS(tgt_speed), .size = 4 },
+                { .offset = offsetof(csa_t, tp_vel_out), .size = 4 }
         },
 
         .ref_volt = 500,
@@ -74,13 +90,11 @@ const csa_t csa_dft = {
         .tp_speed = 100000,
         .tp_accel = 200000,
         .tp_accel_emg = 2000000,
+        .tp_max_err = 0,
 
-        .pid_pos = {
-                .kp = 500,
-                .out_min = -2000000,    // 64000000/32
-                .out_max = 2000000,     // limit output speed
-                .dt = 1.0f / LOOP_FREQ
-        },
+        .pid_pos_kp = 500,
+        .pid_pos_out_min = -2000000,    // 64000000/32
+        .pid_pos_out_max = 2000000,     // limit output speed
 
         .string_test = "hello"
 };
@@ -97,17 +111,15 @@ void load_conf(void)
     if (magic_code == 0xcdcd && conf_ver == APP_CONF_VER) {
         memcpy(&csa, (void *)APP_CONF_ADDR, offsetof(csa_t, _end_save));
         csa.conf_from = 1;
-    } else if (magic_code == 0xcdcd && (conf_ver >> 8) == (APP_CONF_VER >> 8)) {
+    } else if (magic_code == 0xcdcd && (conf_ver >> 12) == (APP_CONF_VER >> 12)) {
         memcpy(&csa, (void *)APP_CONF_ADDR, offsetof(csa_t, _end_common));
         csa.conf_from = 2;
         csa.conf_ver = APP_CONF_VER;
     }
     if (csa.conf_from) {
         memset(&csa.do_reboot, 0, 3);
+        csa.dbg_raw_en = 0;
         csa.tp_pos = 0;
-        csa.pid_pos.dt = csa_dft.pid_pos.dt;
-        csa.pid_pos.out_max = csa_dft.pid_pos.out_max;
-        csa.pid_pos.out_min = csa_dft.pid_pos.out_min;
     }
 }
 
@@ -181,19 +193,22 @@ int flash_write(uint32_t addr, uint32_t len, const uint8_t *buf)
                 int8_t: "b", uint8_t: "B", \
                 int16_t: "h", uint16_t: "H", \
                 int32_t: "i", uint32_t: "I", \
-                int: "i", \
                 bool: "b", \
                 float: "f", \
                 char *: "[c]", \
                 uint8_t *: "[B]", \
-                regr_t: "H,H", \
-                regr_t *: "{H,H}", \
+                regr_t: "H,B2", \
+                regr_t *: "{H,B2}", \
                 default: "-"))
 
 
 #define CSA_SHOW(_p, _x, _desc) \
         d_debug("  [ 0x%04x, %d, \"%s\", " #_p ", \"" #_x "\", \"%s\" ],\n", \
                 offsetof(csa_t, _x), sizeof(csa._x), t_name(csa._x), _desc);
+
+#define CSA_SHOW_OFS(_p, _x, _desc) \
+        d_debug("  [ 0x%04x, %d, \"%s\", " #_p ", \"" #_x "\", \"%s\" ],\n", \
+                CSA_OFS(_x), sizeof(csa._x), t_name(csa._x), _desc);
 
 #define CSA_SHOW_SUB(_p, _x, _y_t, _y, _desc) \
         d_debug("  [ 0x%04x, %d, \"%s\", " #_p ", \"" #_x "_" #_y "\", \"%s\" ],\n", \
@@ -208,20 +223,24 @@ void csa_list_show(void)
     CSA_SHOW(1, conf_ver, "Config version");
     CSA_SHOW(0, conf_from, "0: default config, 1: all from flash, 2: partly from flash");
     CSA_SHOW(0, do_reboot, "1: reboot to bl, 2: reboot to app");
+    CSA_SHOW(0, keep_bl, "Keep running in bootloader");
     CSA_SHOW(0, save_conf, "Write 1 to save current config to flash");
     d_info("\n");
 
-    CSA_SHOW_SUB(1, bus_cfg, cdctl_cfg_t, mac, "RS-485 port id, range: 0~254");
-    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, baud_l, "RS-485 baud rate for first byte");
-    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, baud_h, "RS-485 baud rate for follow bytes");
-    CSA_SHOW_SUB(1, bus_cfg, cdctl_cfg_t, filter_m, "Multicast address");
-    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, mode, "0: Traditional, 1: Arbitration, 2: Break Sync");
-    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, tx_permit_len, "Allow send wait time");
-    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, max_idle_len, "Max idle wait time for BS mode");
-    CSA_SHOW_SUB(0, bus_cfg, cdctl_cfg_t, tx_pre_len, "Active TX_EN before TX");
+    CSA_SHOW(1, mac, "RS-485 port id, range: 0~254");
+    CSA_SHOW(0, baud_rate_l, "RS-485 baud rate for first byte");
+    CSA_SHOW(0, baud_rate_h, "RS-485 baud rate for follow bytes");
+    CSA_SHOW(1, bus_filter_m, "Multicast address");
+    CSA_SHOW(0, bus_mode, "0: Traditional, 1: Arbitration, 2: Break Sync, 3: Full-duplex");
+    CSA_SHOW(0, bus_idle_wait_len, "Bus idle wait time");
+    CSA_SHOW(0, bus_tx_permit_len, "Allow send wait time");
+    CSA_SHOW(0, bus_max_idle_len, "Max idle wait time for BS mode");
+    CSA_SHOW(0, bus_tx_pre_len, "Active TX_EN before TX");
     d_debug("\n");
 
     CSA_SHOW(0, dbg_en, "1: Report debug message to host, 0: do not report");
+    CSA_SHOW(1, dbg_raw_en, "Enable raw debug plot");
+    CSA_SHOW(1, dbg_raw, "Config raw debug for plot");
     d_info("\n");
 
     CSA_SHOW(1, qxchg_mcast, "Quick-exchange multicast data slice");
@@ -229,43 +248,39 @@ void csa_list_show(void)
     CSA_SHOW(1, qxchg_ret, "Config the return data components for quick-exchange channel");
     d_info("\n");
 
-    CSA_SHOW(1, dbg_raw_msk, "Config which raw debug data to be send");
-    CSA_SHOW(1, dbg_raw[0], "Config raw debug for plot0");
-    CSA_SHOW(1, dbg_raw[1], "Config raw debug for plot1");
-    d_info("\n");
-
-    CSA_SHOW(0, ref_volt, "Motor driver reference voltage, unit: mV");
-    CSA_SHOW(0, md_val, "Motor driver md[2:0] pin value");
-    CSA_SHOW(0, set_home, "Write 1 set home position");
-    CSA_SHOW(0, drv_mo, "MO pin state of drv chip, for debug");
-    CSA_SHOW(0, lim_en, "Enable limit switch");
-    d_debug("\n");
-
     CSA_SHOW(0, tp_pos, "Set target position");
     CSA_SHOW(0, tp_speed, "Set target speed");
     CSA_SHOW(0, tp_accel, "Set target accel");
     CSA_SHOW(0, tp_accel_emg, "Set emergency accel");
+    CSA_SHOW(0, tp_max_err, "Maximum allowed position error, 0: disabled");
+    CSA_SHOW(0, tp_state, "trap_planner: -1: disable, 0: idle, 1: planning");
+    CSA_SHOW(0, tp_vel_out, "Current planned velocity");
     d_debug("\n");
 
-    CSA_SHOW_SUB(0, pid_pos, pid_i_t, kp, "");
-    //CSA_SHOW_SUB(0, pid_pos, pid_i_t, out_min, "");
-    //CSA_SHOW_SUB(0, pid_pos, pid_i_t, out_max, "");
-    CSA_SHOW(0, cal_pos, "PID input position");
-    CSA_SHOW(0, cal_speed, "PID output speed");
+    CSA_SHOW(0, pid_pos_kp, "");
+    CSA_SHOW(0, pid_pos_out_min, "");
+    CSA_SHOW(0, pid_pos_out_max, "");
     d_info("\n");
 
-    CSA_SHOW(0, state, "0: disable drive, 1: enable drive");
+    CSA_SHOW(0, ref_volt, "Motor driver reference voltage, unit: mV");
+    CSA_SHOW(0, md_val, "Motor driver md[2:0] pin value");
+    CSA_SHOW(0, lim_en, "Enable limit switch");
     d_debug("\n");
 
-    d_debug("   // --------------- Follows are not writable: -------------------\n");
-    CSA_SHOW(0, tp_state, "trap_planner: -1: disable, 0: idle, 1: planning");
-    CSA_SHOW(0, cur_pos, "Motor current position");
-    CSA_SHOW(0, tp_vel_out, "Current planned velocity");
-    CSA_SHOW(0, tp_acc_brake, "Required braking acceleration");
+    CSA_SHOW_OFS(0, set_home, "Write 0x80 to set home position");
+    CSA_SHOW_OFS(0, state, "0: stop, 5: position with trap planner");
     d_debug("\n");
 
-    CSA_SHOW(0, loop_cnt, "Count for plot");
-    CSA_SHOW(0, string_test, "String test");
+    CSA_SHOW_OFS(0, tgt_pos, "PID target position");
+    CSA_SHOW_OFS(0, tgt_speed, "PID output speed");
+    d_debug("\n");
+
+    CSA_SHOW_OFS(0, meas_pos, "Motor current position");
+    d_debug("\n");
+
+    CSA_SHOW_OFS(0, loop_cnt, "Count for plot");
+    CSA_SHOW_OFS(0, drv_mo, "MO pin state of drv chip, for debug");
+    CSA_SHOW_OFS(0, string_test, "String test");
     d_debug("\n");
     while (frame_free_head.len < FRAME_MAX - 5);
 }

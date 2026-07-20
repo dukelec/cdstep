@@ -32,24 +32,34 @@ static step_pwm_t step_pwm = {
 static trap_planner_t trap_planner = {
         .dt = 1.0f / LOOP_FREQ
 };
+static pid_i_t pid_pos = {
+        .dt = 1.0f / LOOP_FREQ
+};
 
 
 uint8_t motor_w_hook(uint16_t sub_offset, uint8_t len, uint8_t *dat)
 {
     uint32_t flags;
     static uint8_t last_csa_state = 0;
-    gpio_set_val(&drv_en, csa.state);
+    bool running = csa.state == ST_POS_TP;
+    bool was_running = last_csa_state == ST_POS_TP;
+    gpio_set_val(&drv_en, running);
 
-    if (csa.state) {
+    local_irq_save(flags);
+    csa2pid_pos(&pid_pos);
+    csa2trap_planner_mt(&trap_planner);
+    local_irq_restore(flags);
+
+    if (running) {
         local_irq_save(flags);
-        if (csa.tp_pos != csa.cal_pos)
+        if (csa.tp_pos != csa.tgt_pos)
             trap_planner.state = 1;
         local_irq_restore(flags);
     }
 
-    if (!csa.state && last_csa_state) {
+    if (!running && was_running) {
         local_irq_save(flags);
-        csa.tp_pos = csa.cur_pos;
+        csa.tp_pos = csa.meas_pos;
         local_irq_restore(flags);
     }
 
@@ -80,8 +90,10 @@ void app_motor_init(void)
     gpio_set_val(&drv_md1, csa.md_val & 1);
     gpio_set_val(&drv_md2, csa.md_val & 2);
     gpio_set_val(&drv_md3, csa.md_val & 4);
-    gpio_set_val(&drv_en, csa.state);
-    pid_i_reset(&csa.pid_pos, 0);
+    gpio_set_val(&drv_en, csa.state == ST_POS_TP);
+    csa2pid_pos(&pid_pos);
+    csa2trap_planner_mt(&trap_planner);
+    pid_i_reset(&pid_pos, 0);
 
     d_info("init pwm...\n");
     step_pwm_init(&step_pwm);
@@ -95,21 +107,21 @@ void app_motor_maintain(void)
 {
     uint32_t flags;
 
-    if (csa.set_home && step_pwm.last_is_0) {
+    if (csa.set_home == 0x80 && step_pwm.last_is_0) {
         // after setting home, do not set tc_pos too close to 0 to avoid impacting the mechanical limits
         local_irq_save(flags);
-        csa.tp_pos = csa.cal_pos = csa.cur_pos = 0;
+        csa.tp_pos = csa.tgt_pos = csa.meas_pos = 0;
         step_pwm_clr_cnt(&step_pwm);
         trap_planner_reset(&trap_planner, 0, 0);
-        pid_i_reset(&csa.pid_pos, 0);
-        pid_i_set_target(&csa.pid_pos, csa.cur_pos);
-        csa.cal_speed = 0;
+        pid_i_reset(&pid_pos, 0);
+        pid_i_set_target(&pid_pos, csa.meas_pos);
+        csa.tgt_speed = 0;
         local_irq_restore(flags);
-        d_debug("after set home cur_pos: %d\n", csa.cur_pos);
-        csa.set_home = false;
+        d_debug("after set home meas_pos: %ld\n", csa.meas_pos);
+        csa.set_home = 0;
     }
 
-    if (!csa.state && !csa.tp_state)
+    if (csa.state != ST_POS_TP && !csa.tp_state)
         step_pwm_clr_cnt(&step_pwm);
 
     if (!csa.tp_state)
@@ -119,36 +131,39 @@ void app_motor_maintain(void)
 
 void timer_isr(void)
 {
-    if (!csa.state) {
-        trap_planner_reset(&trap_planner, csa.cur_pos, 0);
+    if (csa.state != ST_POS_TP) {
+        trap_planner_reset(&trap_planner, csa.meas_pos, 0);
         trap_planner2csa_rst(&trap_planner);
 
-        //pid_i_reset(&csa.pid_pos, 0);
-        pid_i_set_target(&csa.pid_pos, csa.cur_pos);
-        csa.cal_pos = csa.cur_pos;
-        csa.cal_speed = 0;
+        //pid_i_reset(&pid_pos, 0);
+        pid_i_set_target(&pid_pos, csa.meas_pos);
+        csa.tgt_pos = csa.meas_pos;
+        csa.tgt_speed = 0;
 
     } else {
-        csa.cur_pos = step_pwm_get_cnt(&step_pwm);
+        csa.meas_pos = step_pwm_get_cnt(&step_pwm);
 
         csa2trap_planner(&trap_planner, limit_disable);
-        trap_planner_update(&trap_planner, csa.cur_pos);
+        trap_planner_update(&trap_planner, csa.meas_pos);
         trap_planner2csa(&trap_planner);
 
-        pid_i_set_target(&csa.pid_pos, csa.cal_pos);
-        csa.cal_speed = pid_i_update_p_only(&csa.pid_pos, csa.cur_pos) + csa.tp_vel_out;
+        pid_i_set_target(&pid_pos, csa.tgt_pos);
+        csa.tgt_speed = lroundf(pid_i_update_p_only(&pid_pos, csa.meas_pos)) + csa.tp_vel_out;
 
-        if (csa.cur_pos == csa.cal_pos && fabsf(csa.cal_speed) <= max((float)csa.tp_accel / LOOP_FREQ, 50.0f)) {
+        int32_t stop_speed = max((int32_t)(csa.tp_accel / LOOP_FREQ), 50);
+        if (!csa.tgt_speed || (csa.meas_pos == csa.tgt_pos && abs(csa.tgt_speed) <= stop_speed)) {
             step_pwm_set(&step_pwm, 0);
         } else {
             // tc_vc: step / sec; tim3 unit: 1 / 64000000Hz
-            int tim_val = lroundf(64000000 / csa.cal_speed);
+            int tim_val = DIV_ROUND_CLOSEST(64000000, csa.tgt_speed);
             step_pwm_set(&step_pwm, tim_val);
         }
     }
 
-    raw_dbg(0);
-    raw_dbg(1);
+    if (csa.dbg_raw_en <= 1)
+        raw_dbg(0);
+    else
+        raw_dbg(1);
     csa.loop_cnt++;
 }
 
@@ -160,5 +175,5 @@ void limit_det_isr(void)
     limit_disable = true;
 
     // when performing detection, it is recommended to set tc_speed smaller and tc_accel larger
-    csa.tp_pos = csa.cur_pos;
+    csa.tp_pos = csa.meas_pos;
 }

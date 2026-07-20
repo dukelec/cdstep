@@ -37,6 +37,16 @@ cdn_ns_t dft_ns = {0};      // CDNET
 static void device_init(void)
 {
     int i;
+    cdctl_cfg_t bus_cfg = {
+            .mac = csa.mac,
+            .baud_l = csa.baud_rate_l,
+            .baud_h = csa.baud_rate_h,
+            .filter_m = { csa.bus_filter_m[0], csa.bus_filter_m[1] },
+            .mode = csa.bus_mode,
+            .tx_permit_len = csa.bus_tx_permit_len,
+            .max_idle_len = csa.bus_max_idle_len,
+            .tx_pre_len = csa.bus_tx_pre_len
+    };
     cdn_init_ns(&dft_ns, &packet_free_head, &frame_free_head);
 
     for (i = 0; i < FRAME_MAX; i++)
@@ -45,9 +55,9 @@ static void device_init(void)
         cdn_list_put(&packet_free_head, &packet_alloc[i]);
 
     spi_wr_init(&r_spi);
-    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi, &r_int, EXTI2_3_IRQn);
+    cdctl_dev_init(&r_dev, &frame_free_head, &bus_cfg, &r_spi, &r_int, EXTI2_3_IRQn);
 
-    cdn_add_intf(&dft_ns, &r_dev.cd_dev, csa.bus_net, csa.bus_cfg.mac);
+    cdn_add_intf(&dft_ns, &r_dev.cd_dev, 0, csa.mac);
 }
 
 

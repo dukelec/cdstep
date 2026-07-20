@@ -13,11 +13,23 @@
 
 // trap_planner
 
+static inline void csa2pid_pos(pid_i_t *pid)
+{
+    pid->kp = csa.pid_pos_kp;
+    pid->out_min = csa.pid_pos_out_min;
+    pid->out_max = csa.pid_pos_out_max;
+}
+
+static inline void csa2trap_planner_mt(trap_planner_t *tp)
+{
+    tp->max_err = csa.tp_max_err;
+}
+
 static inline void csa2trap_planner(trap_planner_t *tp, bool emg)
 {
-    memcpy(&tp->pos_tgt, &csa.tp_pos, 4 * 3);
-    if (emg)
-        tp->acc_tgt = csa.tp_accel_emg;
+    tp->pos_tgt = csa.tp_pos;
+    tp->vel_tgt = csa.tp_speed;
+    tp->acc_tgt = emg ? csa.tp_accel_emg : csa.tp_accel;
 }
 
 static inline void trap_planner2csa_rst(trap_planner_t *tp)
@@ -25,17 +37,15 @@ static inline void trap_planner2csa_rst(trap_planner_t *tp)
     //csa.tp_pos = tp->pos_tgt;
 
     csa.tp_state = tp->state;
-    csa.tp_vel_out = tp->vel_out;
-    csa.tp_acc_brake = tp->acc_brake;
+    csa.tp_vel_out = lroundf(tp->vel_out);
 }
 
 static inline void trap_planner2csa(trap_planner_t *tp)
 {
-    csa.cal_pos = tp->pos_out;
+    csa.tgt_pos = tp->pos_out;
 
     csa.tp_state = tp->state;
-    csa.tp_vel_out = tp->vel_out;
-    csa.tp_acc_brake = tp->acc_brake;
+    csa.tp_vel_out = lroundf(tp->vel_out);
 }
 
 #endif
