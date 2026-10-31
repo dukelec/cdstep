@@ -36,12 +36,12 @@ static void init_info_str(void)
     // M: model; S: serial string; HW: hardware version; SW: software version
     get_uid(cpu_id);
     sprintf(info_str, "M: cdstep (bl); S: %s; SW: %s", cpu_id, SW_VER);
-    d_info("info: %s\n", info_str);
+    d_info("info: %s, git: %s\n", info_str, SW_VER_FULL);
 }
 
 
 // device info
-static void p1_service_routine(void)
+static void p1_service_poll(void)
 {
     cdn_pkt_t *pkt = cdn_sock_recvfrom(&sock1);
     if (!pkt)
@@ -61,7 +61,7 @@ static void p1_service_routine(void)
 
 
 // csa manipulation
-static void p5_service_routine(void)
+static void p5_service_poll(void)
 {
     // read:        0x00, offset_16, len_8   | return [0x00, data]
     // read_dft:    0x01, offset_16, len_8   | return [0x00, data]
@@ -78,7 +78,7 @@ static void p5_service_routine(void)
 
     if (rx_dat[0] == 0x00 && pkt->len == 4) {
         uint16_t offset = get_unaligned16(rx_dat + 1);
-        uint8_t len = min(rx_dat[3], CDN_MAX_DAT - 1);
+        uint8_t len = min(rx_dat[3], CDN_MAX_PAYLOAD - 1);
 
         memcpy(pkt->dat + 1, ((void *) &csa) + offset, len);
 
@@ -102,7 +102,7 @@ static void p5_service_routine(void)
 
     } else if (rx_dat[0] == 0x01 && pkt->len == 4) {
             uint16_t offset = get_unaligned16(rx_dat + 1);
-            uint8_t len = min(rx_dat[3], CDN_MAX_DAT - 1);
+            uint8_t len = min(rx_dat[3], CDN_MAX_PAYLOAD - 1);
             memcpy(pkt->dat + 1, ((void *) &csa_dft) + offset, len);
             //d_debug("csa read_dft: %04x %d\n", offset, len);
             pkt->dat[0] = 0;
@@ -122,7 +122,7 @@ static void p5_service_routine(void)
 
 
 // flash memory manipulation
-static void p8_service_routine(void)
+static void p8_service_poll(void)
 {
     // erase:   0x2f, addr_32, len_32  | return [0x00] on success
     // write:   0x20, addr_32 + [data] | return [0x00] on success
@@ -147,7 +147,7 @@ static void p8_service_routine(void)
 
     } else if (rx_dat[0] == 0x00 && pkt->len == 6) {
         uint8_t *src_dat = (uint8_t *) get_unaligned32(rx_dat + 1);
-        uint8_t len = min(rx_dat[5], CDN_MAX_DAT - 1);
+        uint8_t len = min(rx_dat[5], CDN_MAX_PAYLOAD - 1);
         memcpy(pkt->dat + 1, src_dat, len);
         d_verbose("nvm read: %08x %d\n", src_dat, len);
         pkt->dat[0] = 0;
@@ -183,7 +183,7 @@ static void p8_service_routine(void)
 }
 
 
-void common_service_init(void)
+void comm_service_init(void)
 {
     cdn_sock_bind(&sock8);
     cdn_sock_bind(&sock5);
@@ -191,7 +191,7 @@ void common_service_init(void)
     init_info_str();
 }
 
-void common_service_routine(void)
+void comm_service_poll(void)
 {
     if (csa.save_conf) {
         csa.save_conf = false;
@@ -202,9 +202,9 @@ void common_service_routine(void)
         NVIC_SystemReset();
     }
 
-    p1_service_routine();
-    p5_service_routine();
-    p8_service_routine();
+    p1_service_poll();
+    p5_service_poll();
+    p8_service_poll();
 }
 
 
@@ -214,14 +214,14 @@ int _write(int file, char *data, int len)
     if (csa.dbg_en) {
         cd_frame_t *frm = cd_list_get(&frame_free_head);
         if (frm) {
-            len = min(CDN_MAX_DAT - 2, len);
-            frm->dat[0] = csa.bus_cfg.mac;
+            len = min(CDN_MAX_PAYLOAD, len);
+            frm->dat[0] = csa.mac;
             frm->dat[1] = 0x0;
             frm->dat[2] = 2 + len;
             frm->dat[3] = 64;
             frm->dat[4] = 9;
             memcpy(frm->dat + 5, data, len);
-            cdctl_put_tx_frame(&r_dev.cd_dev, frm);
+            cdctl_send_frame(&r_dev.cd_dev, frm);
             //return len;
         }
     }
