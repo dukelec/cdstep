@@ -25,8 +25,11 @@
 #define BL_ARGS             0x20000000 // first word
 #define APP_CONF_ADDR       0x0801f800 // page 63, the last page
 #define APP_CONF_VER        0x0300
+#define CSA_PRJ_CONF_ADDR   0x0300 // project private config [0x0300, 0x03d0), see csa_prj.h
+#define CSA_PRJ_CONF_LIMIT  0x03d0
 #define CSA_SET_HOME        0x03fe
 #define CSA_EXT_ST          0x0400
+#define CSA_PRJ_STAT_ADDR   0x0500 // project private status
 
 #define FRAME_MAX           80
 #define PACKET_MAX          80
@@ -54,6 +57,8 @@ typedef struct {
     uint16_t        size;
 } reg2r_t; // reg range
 
+
+#include "csa_prj.h" // project private csa fields, optional
 
 typedef struct {
     uint16_t        magic_code;     // 0xcdcd
@@ -112,6 +117,14 @@ typedef struct {
     uint8_t         md_val;
     bool            lim_en;
 
+    // project private saved config (CSA_PRJ_CONF_EN), register address 0x0300..0x03cf:
+    // prj_conf_ver at 0x0300, the project's csa_prj_conf_t from 0x0304 (up to 204 bytes)
+#ifdef CSA_PRJ_CONF_EN
+    uint16_t        prj_conf_ver;   // CSA_PRJ_CONF_VER, bump when csa_prj_conf_t changes
+    uint8_t         _reserved_prj[2];
+    csa_prj_conf_t  prj_conf;
+#endif
+
     #define         _end_save _reserved16
     uint8_t         _reserved16[2];
     uint8_t         set_home;
@@ -132,11 +145,28 @@ typedef struct {
     bool            drv_mo;         // mo pin state of drv chip
     char            string_test[10]; // for cdbus_gui tool test
 
+    // project private status (CSA_PRJ_STAT_EN), register address 0x0500 onwards, not saved
+#ifdef CSA_PRJ_STAT_EN
+    uint8_t         _reserved21[16]; // pad up to address 0x0500
+    csa_prj_stat_t  prj_stat;
+#endif
+
 } csa_t; // config status area
 
+// The register address map has gaps that csa_t leaves out: the status part
+// (set_home at 0x3fe onwards) and the optional project config (0x300) are
+// shifted by a constant each; CSA_OFS converts a csa_t offset to its address.
 #define CSA_OFS_ST          (CSA_EXT_ST - offsetof(csa_t, state))
+#ifdef CSA_PRJ_CONF_EN
+#define CSA_OFS_PRJ         (CSA_PRJ_CONF_ADDR - offsetof(csa_t, prj_conf_ver))
+#define CSA_CONF_END        offsetof(csa_t, prj_conf_ver) // direct-mapped config ends where the project config begins
+#else
+#define CSA_OFS_PRJ         0
+#define CSA_CONF_END        offsetof(csa_t, _end_save)
+#endif
 #define CSA_OFS(_x)         (offsetof(csa_t, _x) + \
-        (offsetof(csa_t, _x) >= offsetof(csa_t, set_home) ? CSA_OFS_ST : 0))
+        (offsetof(csa_t, _x) >= offsetof(csa_t, set_home) ? CSA_OFS_ST : \
+         offsetof(csa_t, _x) >= CSA_CONF_END ? CSA_OFS_PRJ : 0))
 
 _Static_assert(offsetof(csa_t, mac) == 0x000f, "CSA mac offset");
 _Static_assert(offsetof(csa_t, baud_rate_l) == 0x0010, "CSA baud_rate offset");
@@ -159,23 +189,39 @@ _Static_assert(offsetof(csa_t, pid_pos_out_max) == 0x01c0, "CSA pid_pos_out_max 
 _Static_assert(offsetof(csa_t, ref_volt) == 0x0290, "CSA ref_volt offset");
 _Static_assert(offsetof(csa_t, md_val) == 0x0292, "CSA md_val offset");
 _Static_assert(offsetof(csa_t, lim_en) == 0x0293, "CSA lim_en offset");
+_Static_assert(CSA_CONF_END == 0x0294, "CSA common saved config end");
+#ifdef CSA_PRJ_CONF_EN
+_Static_assert(sizeof(csa_prj_conf_t) % 4 == 0, "pad csa_prj_conf_t to a multiple of 4");
+_Static_assert(CSA_OFS(_end_save) <= CSA_PRJ_CONF_LIMIT, "csa_prj_conf_t too large");
+#else
 _Static_assert(offsetof(csa_t, _end_save) == 0x0294, "CSA saved config end");
 _Static_assert(offsetof(csa_t, set_home) == 0x0296, "CSA internal set_home offset");
-_Static_assert(CSA_OFS(set_home) == 0x03fe, "CSA set_home offset");
 _Static_assert(offsetof(csa_t, state) == 0x0298, "CSA internal state offset");
 _Static_assert(CSA_OFS_ST == 0x0168, "CSA extension offset");
+#endif
+_Static_assert(CSA_OFS(set_home) == 0x03fe, "CSA set_home offset");
 _Static_assert(CSA_OFS(state) == 0x0400, "CSA state offset");
 _Static_assert(CSA_OFS(tgt_pos) == 0x0440, "CSA target offset");
 _Static_assert(CSA_OFS(tgt_speed) == 0x0444, "CSA tgt_speed offset");
 _Static_assert(CSA_OFS(meas_pos) == 0x0494, "CSA meas_pos offset");
 _Static_assert(CSA_OFS(loop_cnt) == 0x04e0, "CSA loop_cnt offset");
+#ifdef CSA_PRJ_STAT_EN
+_Static_assert(CSA_OFS(prj_stat) == CSA_PRJ_STAT_ADDR, "CSA prj_stat offset");
+#endif
 
+// register address range -> byte offset in csa_t, false if it is outside the mapped areas
 static inline bool csa_range_to_internal(uint16_t protocol_offset, uint16_t size, uint16_t *internal_offset)
 {
     uint32_t offset = protocol_offset;
     if (offset >= CSA_SET_HOME) {
         offset -= CSA_OFS_ST;
-    } else if (offset + size > offsetof(csa_t, _end_save)) {
+#ifdef CSA_PRJ_CONF_EN
+    } else if (offset >= CSA_PRJ_CONF_ADDR) {
+        offset -= CSA_OFS_PRJ;
+        if (offset + size > offsetof(csa_t, _end_save))
+            return false;
+#endif
+    } else if (offset + size > CSA_CONF_END) {
         return false;
     }
 
@@ -215,6 +261,9 @@ void app_main(void);
 void load_conf(void);
 int save_conf(void);
 void csa_list_show(void);
+#if defined(CSA_PRJ_CONF_EN) || defined(CSA_PRJ_STAT_EN)
+void csa_list_show_prj(void); // the project's rows, in config.c, see CSA_SHOW_PRJ_*
+#endif
 
 void comm_service_init(void);
 void comm_service_poll(void);

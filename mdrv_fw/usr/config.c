@@ -13,7 +13,10 @@ reg2r_t csa_w_allow[] = {
         { .offset = offsetof(csa_t, magic_code), .size = 4 },
         { .offset = offsetof(csa_t, do_reboot),
                 .size = offsetof(csa_t, tp_max_err) + sizeof(csa.tp_max_err) - offsetof(csa_t, do_reboot) },
-        { .offset = offsetof(csa_t, pid_pos_kp), .size = offsetof(csa_t, _end_save) - offsetof(csa_t, pid_pos_kp) },
+        { .offset = offsetof(csa_t, pid_pos_kp), .size = CSA_CONF_END - offsetof(csa_t, pid_pos_kp) },
+#ifdef CSA_PRJ_CONF_EN
+        { .offset = offsetof(csa_t, prj_conf), .size = sizeof(csa.prj_conf) },
+#endif
         { .offset = offsetof(csa_t, set_home), .size = 1 },
         { .offset = offsetof(csa_t, state), .size = 1 },
         { .offset = offsetof(csa_t, string_test), .size = sizeof(csa.string_test) }
@@ -96,6 +99,11 @@ const csa_t csa_dft = {
         .pid_pos_out_min = -2000000,    // 64000000/32
         .pid_pos_out_max = 2000000,     // limit output speed
 
+#ifdef CSA_PRJ_CONF_EN
+        .prj_conf_ver = CSA_PRJ_CONF_VER,
+        .prj_conf = CSA_PRJ_CONF_DFT,
+#endif
+
         .string_test = "hello"
 };
 
@@ -111,6 +119,12 @@ void load_conf(void)
     if (magic_code == 0xcdcd && conf_ver == APP_CONF_VER) {
         memcpy(&csa, (void *)APP_CONF_ADDR, offsetof(csa_t, _end_save));
         csa.conf_from = 1;
+#ifdef CSA_PRJ_CONF_EN
+        if (csa.prj_conf_ver != CSA_PRJ_CONF_VER) { // private layout changed: keep its defaults
+            csa.prj_conf = csa_dft.prj_conf;
+            csa.conf_from = 2;
+        }
+#endif
     } else if (magic_code == 0xcdcd && (conf_ver >> 12) == (APP_CONF_VER >> 12)) {
         memcpy(&csa, (void *)APP_CONF_ADDR, offsetof(csa_t, _end_common));
         csa.conf_from = 2;
@@ -121,6 +135,9 @@ void load_conf(void)
         csa.dbg_raw_en = 0;
         csa.tp_pos = 0;
     }
+#ifdef CSA_PRJ_CONF_EN
+    csa.prj_conf_ver = CSA_PRJ_CONF_VER;
+#endif
 }
 
 int save_conf(void)
@@ -202,17 +219,23 @@ int flash_write(uint32_t addr, uint32_t len, const uint8_t *buf)
                 default: "-"))
 
 
+// one register table row: [ addr, size, type, hide, name, desc ]
+#define _CSA_SHOW(_addr, _v, _p, _name, _desc) \
+        d_debug("  [ 0x%04x, %d, \"%s\", " #_p ", \"" _name "\", \"%s\" ],\n", \
+                (_addr), sizeof(_v), t_name(_v), _desc);
+
 #define CSA_SHOW(_p, _x, _desc) \
-        d_debug("  [ 0x%04x, %d, \"%s\", " #_p ", \"" #_x "\", \"%s\" ],\n", \
-                offsetof(csa_t, _x), sizeof(csa._x), t_name(csa._x), _desc);
-
+        _CSA_SHOW(offsetof(csa_t, _x), csa._x, _p, #_x, _desc)
 #define CSA_SHOW_OFS(_p, _x, _desc) \
-        d_debug("  [ 0x%04x, %d, \"%s\", " #_p ", \"" #_x "\", \"%s\" ],\n", \
-                CSA_OFS(_x), sizeof(csa._x), t_name(csa._x), _desc);
-
+        _CSA_SHOW(CSA_OFS(_x), csa._x, _p, #_x, _desc)
 #define CSA_SHOW_SUB(_p, _x, _y_t, _y, _desc) \
-        d_debug("  [ 0x%04x, %d, \"%s\", " #_p ", \"" #_x "_" #_y "\", \"%s\" ],\n", \
-                offsetof(csa_t, _x) + offsetof(_y_t, _y), sizeof(csa._x._y), t_name(csa._x._y), _desc);
+        _CSA_SHOW(offsetof(csa_t, _x) + offsetof(_y_t, _y), csa._x._y, _p, #_x "_" #_y, _desc)
+
+// project private fields, see csa_prj.h
+#define CSA_SHOW_PRJ_CONF(_p, _y, _desc) \
+        _CSA_SHOW(CSA_OFS(prj_conf) + offsetof(csa_prj_conf_t, _y), csa.prj_conf._y, _p, #_y, _desc)
+#define CSA_SHOW_PRJ_STAT(_p, _y, _desc) \
+        _CSA_SHOW(CSA_OFS(prj_stat) + offsetof(csa_prj_stat_t, _y), csa.prj_stat._y, _p, #_y, _desc)
 
 void csa_list_show(void)
 {
@@ -282,5 +305,13 @@ void csa_list_show(void)
     CSA_SHOW_OFS(0, drv_mo, "MO pin state of drv chip, for debug");
     CSA_SHOW_OFS(0, string_test, "String test");
     d_debug("\n");
+
+#ifdef CSA_PRJ_CONF_EN
+    CSA_SHOW_OFS(1, prj_conf_ver, "Project config layout version");
+#endif
+#if defined(CSA_PRJ_CONF_EN) || defined(CSA_PRJ_STAT_EN)
+    csa_list_show_prj();
+    d_debug("\n");
+#endif
     while (frame_free_head.len < FRAME_MAX - 5);
 }

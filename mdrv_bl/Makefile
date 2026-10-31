@@ -14,7 +14,7 @@
 # target
 ######################################
 TARGET = mdrv_bl
-GIT_VERSION_FULL := $(shell git describe --dirty --always --tags)
+GIT_VERSION_FULL := $(shell git describe --long --dirty --always --tags)
 # tag format: any_string_vX.Y
 VERSION_MID := $(shell echo $(GIT_VERSION_FULL) | sed -E 's/.*v//' | sed -E 's/-g.*//')
 GIT_VERSION := $(shell \
