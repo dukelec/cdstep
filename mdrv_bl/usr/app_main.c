@@ -36,6 +36,17 @@ cdn_ns_t dft_ns = {0};      // CDNET
 static void device_init(void)
 {
     int i;
+    cdctl_cfg_t bus_cfg = {
+            .mac = csa.mac,
+            .baud_l = csa.baud_rate_l,
+            .baud_h = csa.baud_rate_h,
+            .filter_m = { csa.bus_filter_m[0], csa.bus_filter_m[1] },
+            .mode = csa.bus_mode,
+            .idle_wait_len = csa.bus_idle_wait_len,
+            .tx_permit_len = csa.bus_tx_permit_len,
+            .max_idle_len = csa.bus_max_idle_len,
+            .tx_pre_len = csa.bus_tx_pre_len
+    };
     cdn_init_ns(&dft_ns, &packet_free_head, &frame_free_head);
 
     for (i = 0; i < FRAME_MAX; i++)
@@ -43,13 +54,13 @@ static void device_init(void)
     for (i = 0; i < PACKET_MAX; i++)
         cdn_list_put(&packet_free_head, &packet_alloc[i]);
 
-    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi);
-    if (!csa.keep_in_bl) {
+    cdctl_dev_init(&r_dev, &frame_free_head, &bus_cfg, &r_spi);
+    if (!csa.keep_bl) {
         cdctl_set_baud_rate(&r_dev, 115200, 115200);
         cdctl_flush(&r_dev);
     }
 
-    cdn_add_intf(&dft_ns, &r_dev.cd_dev, csa.bus_net, csa.bus_cfg.mac);
+    cdn_add_intf(&dft_ns, &r_dev.cd_dev, 0, csa.mac);
 }
 
 
@@ -57,8 +68,9 @@ static void device_init(void)
 
 static void jump_to_app(void)
 {
+    static uint32_t func; // not on stack (MSP switches before use)
     uint32_t stack = *(uint32_t*)APP_ADDR;
-    uint32_t func = *(uint32_t*)(APP_ADDR + 4);
+    func = *(uint32_t*)(APP_ADDR + 4);
 
     gpio_set_val(&led_r, 0);
     gpio_set_val(&led_g, 0);
@@ -84,20 +96,20 @@ void app_main(void)
 
     load_conf();
     bool dbg_en_bk = csa.dbg_en;
-    csa.keep_in_bl = *bl_args == 0xcdcd0001;
-    if (!csa.keep_in_bl)
+    csa.keep_bl = *bl_args == 0xcdcd0001;
+    if (!csa.keep_bl)
         csa.dbg_en = false; // silence
     gpio_set_low(&r_rst);
     delay_systick(2);
     gpio_set_high(&r_rst);
     delay_systick(50);
     device_init();
-    common_service_init();
+    comm_service_init();
     printf("bl conf: %s, bl_args: %08lx\n", csa.conf_from ? "load from flash" : "use default", *bl_args);
     gpio_set_val(&led_g, 1);
 
     uint32_t t_last = get_systick();
-    bool update_baud = csa.keep_in_bl;
+    bool update_baud = csa.keep_bl;
 
     while (true) {
         if (get_systick() - t_last > (update_baud ? 100000 : 200000) / CD_SYSTICK_US_DIV) {
@@ -105,21 +117,20 @@ void app_main(void)
             gpio_set_val(&led_g, !gpio_get_val(&led_g));
         }
 
-        if (!csa.keep_in_bl && !update_baud && get_systick() > 1000000 / CD_SYSTICK_US_DIV) {
+        if (!csa.keep_bl && !update_baud && get_systick() > 1000000 / CD_SYSTICK_US_DIV) {
             update_baud = true;
-            if (csa.bus_cfg.baud_l != 115200 || csa.bus_cfg.baud_h != 115200) {
-                cdctl_set_baud_rate(&r_dev, csa.bus_cfg.baud_l, csa.bus_cfg.baud_h);
+            if (csa.baud_rate_l != 115200 || csa.baud_rate_h != 115200) {
+                cdctl_set_baud_rate(&r_dev, csa.baud_rate_l, csa.baud_rate_h);
                 cdctl_flush(&r_dev);
             }
             csa.dbg_en = dbg_en_bk;
         }
 
-        if (!csa.keep_in_bl && get_systick() > 2000000 / CD_SYSTICK_US_DIV)
+        if (!csa.keep_bl && get_systick() > 2000000 / CD_SYSTICK_US_DIV)
             jump_to_app();
 
-        cdctl_routine(&r_dev);
-        cdn_routine(&dft_ns); // handle cdnet
-        common_service_routine();
+        cdctl_poll(&r_dev);
+        cdn_poll(&dft_ns); // handle cdnet
+        comm_service_poll();
     }
 }
-

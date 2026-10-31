@@ -37,6 +37,17 @@ cdn_ns_t dft_ns = {0};      // CDNET
 static void device_init(void)
 {
     int i;
+    cdctl_cfg_t bus_cfg = {
+            .mac = csa.mac,
+            .baud_l = csa.baud_rate_l,
+            .baud_h = csa.baud_rate_h,
+            .filter_m = { csa.bus_filter_m[0], csa.bus_filter_m[1] },
+            .mode = csa.bus_mode,
+            .idle_wait_len = csa.bus_idle_wait_len,
+            .tx_permit_len = csa.bus_tx_permit_len,
+            .max_idle_len = csa.bus_max_idle_len,
+            .tx_pre_len = csa.bus_tx_pre_len
+    };
     cdn_init_ns(&dft_ns, &packet_free_head, &frame_free_head);
 
     for (i = 0; i < FRAME_MAX; i++)
@@ -45,9 +56,9 @@ static void device_init(void)
         cdn_list_put(&packet_free_head, &packet_alloc[i]);
 
     spi_wr_init(&r_spi);
-    cdctl_dev_init(&r_dev, &frame_free_head, &csa.bus_cfg, &r_spi, &r_int, EXTI2_3_IRQn);
+    cdctl_dev_init(&r_dev, &frame_free_head, &bus_cfg, &r_spi, &r_int);
 
-    cdn_add_intf(&dft_ns, &r_dev.cd_dev, csa.bus_net, csa.bus_cfg.mac);
+    cdn_add_intf(&dft_ns, &r_dev.cd_dev, 0, csa.mac);
 }
 
 
@@ -90,7 +101,7 @@ void app_main(void)
     HAL_NVIC_SetPriority(TIM1_BRK_UP_TRG_COM_IRQn, 1, 0);
 
     device_init();
-    common_service_init();
+    comm_service_init();
     d_info("conf (mdrv-step): %s\n", csa.conf_from ? "load from flash" : "use default");
 
     app_motor_init();
@@ -126,9 +137,9 @@ void app_main(void)
         }
 
         //dump_hw_status();
-        app_motor_routine();
-        cdn_routine(&dft_ns); // handle cdnet
-        common_service_routine();
+        app_motor_maintain();
+        cdn_poll(&dft_ns); // handle cdnet
+        comm_service_poll();
 
         if (*stack_check != 0xababcdcd12123434) {
             printf("stack overflow\n");
