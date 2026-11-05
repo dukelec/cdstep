@@ -137,7 +137,7 @@ g_pfnVectors:
   .word 0
   .word 0
   .word 0
-  .word 0
+  .word sw_ver                            /* 0x20, reserved: version string */
   .word 0
   .word 0
   .word SVC_Handler

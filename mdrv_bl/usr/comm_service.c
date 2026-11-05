@@ -12,6 +12,7 @@
 
 static char cpu_id[25];
 static char info_str[100];
+const char sw_ver[] = SW_VER; // vector slot 0x20 points here, the app reads it
 
 static cdn_sock_t sock1 = { .port = 1, .ns = &dft_ns };
 static cdn_sock_t sock5 = { .port = 5, .ns = &dft_ns };
@@ -31,11 +32,35 @@ static void get_uid(char *buf)
     buf[24] = '\0';
 }
 
+static uint32_t get_hw_ver(void) // bytes: major, minor, patch -> 0xMMmmpp, 0xffffff if never written
+{
+    uint32_t ver = 0xffffff;
+    for (const uint64_t *p = (uint64_t *)HW_VER_ADDR; p < (uint64_t *)HW_VER_ADDR + 9 && *p != ~0ULL; p++) {
+        if (*p == 0) // zeroed, the only overwrite the flash accepts
+            continue;
+        const uint8_t *b = (const uint8_t *)p;
+        ver = b[0] << 16 | b[1] << 8 | b[2];
+    }
+    return ver;
+}
+
+static void get_hw_ver_str(char *buf) // buf[24], "" if never written
+{
+    uint32_t v = get_hw_ver();
+    *buf = '\0';
+    if (v != 0xffffff)
+        sprintf(buf, (v & 0xff) ? "; HW: v%d.%d.%d" : "; HW: v%d.%d",
+                (int)(v >> 16), (int)(v >> 8 & 0xff), (int)(v & 0xff));
+}
+
 static void init_info_str(void)
 {
     // M: model; S: serial string; HW: hardware version; SW: software version
+    char hw_ver[24];
     get_uid(cpu_id);
-    sprintf(info_str, "M: cdstep (bl); S: %s; SW: %s", cpu_id, SW_VER);
+    get_hw_ver_str(hw_ver);
+    snprintf(info_str, sizeof(info_str), "M: cdstep (bl); S: %s%s; SW: %s",
+             cpu_id, hw_ver, sw_ver);
     d_info("info: %s, git: %s\n", info_str, SW_VER_FULL);
 }
 

@@ -23,6 +23,7 @@
 
 #define BL_ARGS             0x20000000 // first word
 #define APP_CONF_ADDR       0x0801f800 // page 63, the last page
+#define HW_VER_ADDR         0x1fff7008 // otp, 9 slots of 8 bytes (to 0x1fff704f), the last written one wins; same as cdfoc
 #define APP_CONF_VER        0x0300
 
 #define FRAME_MAX           30

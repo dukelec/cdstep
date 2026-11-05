@@ -163,6 +163,11 @@ int flash_erase(uint32_t addr, uint32_t len)
     uint32_t err_sector = 0xffffffff;
     FLASH_EraseInitTypeDef f;
 
+    if (!IS_FLASH_MAIN_MEM_ADDRESS(addr) || len > FLASH_BASE + FLASH_SIZE - addr) {
+        d_error("nvm erase: out of main flash\n");
+        return -1;
+    }
+
     uint32_t ofs = addr & ~0x08000000;
     if (ofs <= 0x6000 && 0x6000 < ofs + len) {
         d_error("nvm erase: avoid erasing self\n");
